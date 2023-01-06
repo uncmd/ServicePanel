@@ -1,0 +1,78 @@
+﻿@page "/"
+@implements IDisposable
+@using System.ServiceProcess
+@inject NavigationManager Navigation
+@inject ServiceControlService ControlService
+
+<MudTable Items="@services" 
+    Hover="true" 
+    Striped="true" 
+    SortLabel="Sort By"
+    Filter="p => FilterFunc(p, searchString)"
+    Loading="@_loading" 
+    LoadingProgressColor="Color.Info">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceSummaryModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
+        <MudTh>服务数量</MudTh>
+        <MudTh>运行中的服务数量</MudTh>
+        <MudTh>系统架构</MudTh>
+        <MudTh>系统名称</MudTh>
+        <MudTh>Cpu</MudTh>
+        <MudTh>内存</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="地址">
+            <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
+        </MudTd>
+        <MudTd DataLabel="服务数量">@context.Count</MudTd>
+        <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
+        <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
+        <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
+        <MudTd DataLabel="Cpu">@context.CpuInfo</MudTd>
+        <MudTd DataLabel="内存">@context.MemInfo</MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private bool _loading = true;
+    private string searchString = "";
+    private ServiceSummaryModel[]? services;
+    private Timer? _timer;
+
+    protected override async Task OnInitializedAsync()
+    {
+        services = await ControlService.GetServiceSummaries();
+        _loading = false;
+
+        _timer = new Timer(async stateInfo =>
+        {
+            services = await ControlService.GetServiceSummaries();
+            await InvokeAsync(StateHasChanged);
+        }, new AutoResetEvent(false), 5000, 5000);
+    }
+
+    private void NavigateToServicePanelDetail(string address)
+    {
+        Navigation.NavigateTo($"control-panel-detail/{address}");
+    }
+
+    private bool FilterFunc(ServiceSummaryModel? element, string searchString)
+    {
+        if (element == null)
+            return false;
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (element.Address.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

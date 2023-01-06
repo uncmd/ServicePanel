@@ -1,0 +1,201 @@
+﻿@page "/control-panel"
+@using System.ServiceProcess
+@inject NavigationManager Navigation
+@inject ServiceControlService ControlService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<MudTable Items="@services" 
+    Hover="true" 
+    Striped="true" 
+    Dense="true"
+    @ref="_table"
+    MultiSelection="true"
+    @bind-SelectedItems="selectedItems"
+    SelectOnRowClick="true"
+    FixedHeader="true"FixedFooter="true"Height="560px"
+    Filter="p => FilterFunc(p, searchString)"
+    LoadingProgressColor="Color.Info">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Pid)">PID</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
+        <MudTh>操作</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="地址">
+            <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
+        </MudTd>
+        <MudTd DataLabel="名称">
+            <MudButton Color="Color.Primary" OnClick="() => OpenDialog(context)">@context.ServiceName</MudButton>
+        </MudTd>
+        <MudTd DataLabel="PID">@context.Pid</MudTd>
+        <MudTd DataLabel="描述">@context.DisplayName</MudTd>
+        <MudTd DataLabel="状态">@context.Status</MudTd>
+        <MudTd DataLabel="操作">
+            <MudButtonGroup OverrideStyles="false">
+                <MudTooltip Text="启动" Placement="Placement.Right">
+                    <MudButton 
+                        Color="Color.Primary" 
+                        StartIcon="@Icons.Material.Filled.NotStarted" 
+                        Disabled="DisabledStart(context)"
+                        OnClick="() => StartService(context)">
+                        @if (context.Processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudButton>
+                </MudTooltip>
+                <MudTooltip Text="停止" Placement="Placement.Right">
+                    <MudButton 
+                        Color="Color.Error" 
+                        StartIcon="@Icons.Material.Filled.Stop" 
+                        Disabled="DisabledStop(context)"
+                        OnClick="() => StopService(context)">
+                        @if (context.Processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudButton>
+                </MudTooltip>
+            </MudButtonGroup>
+        </MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
+    </PagerContent>
+</MudTable>
+
+@code {
+    private MudTable<ServiceModel>? _table;
+    private string searchString = "";
+    private HashSet<ServiceModel> selectedItems = new HashSet<ServiceModel>();
+    private ServiceModel[]? services;
+
+    protected override async Task OnInitializedAsync()
+    {
+        services = await ControlService.GetAllServices();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && _table != null)
+        {
+            _table.SetRowsPerPage(50);
+        }
+
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void NavigateToServicePanelDetail(string address)
+    {
+        Navigation.NavigateTo($"control-panel-detail/{address}");
+    }
+
+    private bool FilterFunc(ServiceModel? element, string searchString)
+    {
+        if (element == null)
+            return false;
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+
+        var searchArray = searchString.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        List<bool> results = new List<bool>();
+        foreach (var str in searchArray)
+        {
+            var filterResult = false;
+            if (element.Address.Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            if (element.ServiceName.Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            if (element.DisplayName.Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            if (element.ExePath.Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            if (element.Status.ToString().Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            if (element.StartType.ToString().Contains(str, StringComparison.OrdinalIgnoreCase))
+                filterResult = true;
+            results.Add(filterResult);
+        }
+
+        return results.All(p => p == true);
+    }
+
+    private bool DisabledStart(ServiceModel serviceModel)
+    {
+        return !serviceModel.CanStart || serviceModel.Processing;
+    }
+
+    private bool DisabledStop(ServiceModel serviceModel)
+    {
+        return !serviceModel.CanStop || serviceModel.Processing;
+    }
+
+    private bool DisabledReStart(ServiceModel serviceModel)
+    {
+        return !serviceModel.CanRestart || serviceModel.Processing;
+    }
+
+    private async Task StartService(ServiceModel serviceModel)
+    {
+        await ServiceAction(serviceModel, 1);
+    }
+
+    private async Task StopService(ServiceModel serviceModel)
+    {
+        await ServiceAction(serviceModel, 2);
+    }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="serviceModel"></param>
+    /// <param name="type">操作类型：1.启动 2.停止</param>
+    /// <returns></returns>
+    private async Task ServiceAction(ServiceModel serviceModel, int type)
+    {
+        serviceModel.Processing = true;
+        string msg = string.Empty;
+
+        if (type == 1)
+        {
+            msg = await ControlService.StartService(serviceModel);
+        }
+        else if (type == 2)
+        {
+            msg = await ControlService.StopService(serviceModel);
+        }
+
+        services = await ControlService.GetAllServices();
+        serviceModel.Processing = false;
+
+        if (!string.IsNullOrWhiteSpace(msg))
+        {
+            if (msg.Contains("失败"))
+            {
+                Snackbar.Add(msg, Severity.Error);
+            }
+            else
+            {
+                Snackbar.Add(msg, Severity.Info);
+            }
+        }
+    }
+
+    private void OpenDialog(ServiceModel serviceModel)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ServiceModel", serviceModel);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Medium };
+
+        DialogService.Show<ServiceDetailDialog>("", parameters, options);
+    }
+}

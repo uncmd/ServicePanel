@@ -1,33 +1,43 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
+@inject LayoutService LayoutService
 
-<MudThemeProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+<PageTitle>Windows服务控制面板</PageTitle>
 
-<MudLayout>
-    <MudAppBar>
-        <MudIconButton 
-            Icon="@Icons.Material.Filled.Menu" 
-            Color="Color.Inherit" 
-            Edge="Edge.Start" 
-            OnClick="@((e) => DrawerToggle())" />
-        Windows服务面板
-    </MudAppBar>
-    <MudDrawer @bind-Open="@_drawerOpen">
-        <NavMenu />
-    </MudDrawer>
-    <MudMainContent>
-        <MudContainer MaxWidth="MaxWidth.ExtraExtraLarge">
+<MudRTLProvider RightToLeft="@_rightToLeft">
+    <audio id="notification" src="/media/notification.mp3" />
+    <MudThemeProvider Theme="@LayoutService.CurrentTheme" IsDarkMode="@LayoutService.IsDarkMode" IsDarkModeChanged="LayoutService.SetDarkMode" />
+    <MudDialogProvider />
+    <MudSnackbarProvider />
+
+    <MudLayout>
+        <MainBody>
             @Body
-        </MudContainer>
-    </MudMainContent>
-</MudLayout>
+        </MainBody>
+    </MudLayout>
+</MudRTLProvider>
 
 @code {
-    bool _drawerOpen = true;
 
-    void DrawerToggle()
+    private bool _rightToLeft = false;
+
+    protected override void OnInitialized()
     {
-        _drawerOpen = !_drawerOpen;
+        LayoutService.MajorUpdateOccured += LayoutServiceOnMajorUpdateOccured;
+        LayoutService.SetBaseTheme(ServicePanelTheme.DefaultTheme());
+        base.OnInitialized();
     }
+
+    private async Task RightToLeftToggle(bool value)
+    {
+        _rightToLeft = value;
+        await Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        LayoutService.MajorUpdateOccured -= LayoutServiceOnMajorUpdateOccured;
+    }
+
+    private void LayoutServiceOnMajorUpdateOccured(object sender, EventArgs e) => StateHasChanged();
 }

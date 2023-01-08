@@ -1,0 +1,27 @@
+﻿<MudAppBar Elevation="25">
+    <MudIcon Icon="@Icons.Material.Filled.Settings" Size="Size.Large" ViewBox="0 0 500 500" />
+    <MudText Typo="Typo.h6" Class="ml-4">Service Panel</MudText>
+    <MudToolBar DisableGutters="true">
+        <MudIconButton Icon="@Icons.Material.Outlined.Menu" Color="Color.Inherit" OnClick="@((e) => DrawerToggle())" Class="ml-3" />
+    </MudToolBar>
+    <MudSpacer />
+    <MudHidden Breakpoint="Breakpoint.MdAndUp" Invert="true">
+        <MudTooltip Duration="1000" Text="@(LayoutService.IsRTL ? "从左到右" : "从右到左")">
+            <MudIconButton Icon="@(LayoutService.IsRTL ? @Icons.Material.Filled.FormatTextdirectionLToR : @Icons.Material.Filled.FormatTextdirectionRToL)" OnClick="@LayoutService.ToggleRightToLeft" Color="Color.Inherit" />
+        </MudTooltip>
+        <MudTooltip Duration="1000" Text="@(LayoutService.IsDarkMode ? "浅色主题" : "黑暗主题")">
+            <MudIconButton Icon="@Icons.Material.Filled.Brightness4" Color="Color.Inherit" OnClick="@LayoutService.ToggleDarkMode" />
+        </MudTooltip>
+        <MudTooltip Text="GitHub">
+            <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Link="https://github.com/uncmd/ServicePanel" Target="_blank" />
+        </MudTooltip>
+    </MudHidden>
+</MudAppBar>
+<MudDrawer @bind-Open="_drawerOpen" Elevation="25" ClipMode="DrawerClipMode.Always">
+    <NavMenu />
+</MudDrawer>
+<MudMainContent>
+    <MudContainer MaxWidth="MaxWidth.False" Class="mt-4">
+        @ChildContent
+    </MudContainer>
+</MudMainContent>

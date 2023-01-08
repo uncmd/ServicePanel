@@ -1,3 +1,4 @@
+using Orleans.Clustering.Redis;
 using Serilog;
 using ServicePanel;
 
@@ -26,7 +27,16 @@ try
         })
         .UseOrleans((context, builder) =>
         {
-            builder.UseRedisClustering("10.10.2.118:6379,password=mscsredis123!!", 3);
+            var redisOptions = context.Configuration
+                .GetSection("RedisClusteringOptions")
+                .Get<RedisClusteringOptions>();
+
+            if (redisOptions == null)
+            {
+                Log.Error("Œ¥≈‰÷√redis£¨«ÎÃÌº”RedisClusteringOptions≈‰÷√œÓ");
+                throw new ArgumentException("Œ¥≈‰÷√redis£¨«ÎÃÌº”RedisClusteringOptions≈‰÷√œÓ");
+            }
+            builder.UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database);
         })
         .UseWindowsService()
         .Build();

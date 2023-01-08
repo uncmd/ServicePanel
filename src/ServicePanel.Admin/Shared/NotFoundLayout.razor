@@ -1,0 +1,14 @@
+﻿@inherits LayoutComponentBase
+@using ServicePanel.Admin.Pages
+
+<MudThemeProvider Theme="ServicePanelTheme.DefaultTheme()" />
+<MudSnackbarProvider />
+<MudContainer MaxWidth="MaxWidth.Small">
+    <div class="d-flex flex-column">
+        <ServicePanelLogo Style="width:350px;"/>
+        <MudText Typo="Typo.h5" Class="mt-6" Align="Align.Center">你要找的页面不存在</MudText>
+        <MudItem xs="12" sm="12" md="12">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Link="/">主页</MudButton>
+        </MudItem>
+    </div>
+</MudContainer>

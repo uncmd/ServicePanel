@@ -13,87 +13,84 @@ else
     <PageTitle>@Address - Windows服务面板</PageTitle>
 }
 
-<div style="height:calc(100vh - 180px); display:grid; grid-template-rows: minmax(0,1fr); grid-template-columns: minmax(0,1fr);">
-    <MudTable Items="@services"
-              Hover="true"
-              Striped="true"
-              Dense="true"
-              MultiSelection="true"
-              @bind-SelectedItems="selectedItems"
-              SelectOnRowClick="true"
-              Height="100%" FixedHeader="true"
-              Filter="p => FilterFunc(p, searchString)"
-              RowsPerPage="50"
-              LoadingProgressColor="Color.Info">
-        <ToolBarContent>
-            <MudText Typo="Typo.h6">@Address</MudText>
-            <MudSpacer />
-            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-        </ToolBarContent>
-        <HeaderContent>
-            @if (string.IsNullOrWhiteSpace(Address))
-            {
-                <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
-            }
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Pid)">PID</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
-            <MudTh>操作</MudTh>
-            <MudTh>启动类型</MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.MemoryInfo)">内存</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ThreadCount)">线程</MudTableSortLabel></MudTh>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ExePath)">路径</MudTableSortLabel></MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            @if (string.IsNullOrWhiteSpace(Address))
-            {
-                <MudTd DataLabel="地址">
-                    <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
-                </MudTd>
-            }
-            <MudTd DataLabel="名称">@context.ServiceName</MudTd>
-            <MudTd DataLabel="PID">@context.Pid</MudTd>
-            <MudTd DataLabel="描述">@context.DisplayName</MudTd>
-            <MudTd DataLabel="状态">@context.Status</MudTd>
-            <MudTd DataLabel="操作">
-                <MudButtonGroup OverrideStyles="false">
-                    <MudTooltip Text="启动" Placement="Placement.Right">
-                        <MudButton Color="Color.Primary"
-                                   StartIcon="@Icons.Material.Filled.NotStarted"
-                                   Disabled="DisabledStart(context)"
-                                   OnClick="() => StartService(context)">
-                            @if (context.Processing)
-                            {
-                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                            }
-                        </MudButton>
-                    </MudTooltip>
-                    <MudTooltip Text="停止" Placement="Placement.Right">
-                        <MudButton Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.Stop"
-                                   Disabled="DisabledStop(context)"
-                                   OnClick="() => StopService(context)">
-                            @if (context.Processing)
-                            {
-                                <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                            }
-                        </MudButton>
-                    </MudTooltip>
-                </MudButtonGroup>
+<MudTable Items="@services"
+          Hover="true"
+          Striped="true"
+          Dense="true"
+          MultiSelection="true"
+          @bind-SelectedItems="selectedItems"
+          SelectOnRowClick="true"
+          Filter="p => FilterFunc(p, searchString)"
+          RowsPerPage="50"
+          LoadingProgressColor="Color.Info">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">@Address</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <HeaderContent>
+        @if (string.IsNullOrWhiteSpace(Address))
+        {
+            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
+        }
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Pid)">PID</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
+        <MudTh>操作</MudTh>
+        <MudTh>启动类型</MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.MemoryInfo)">内存</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ThreadCount)">线程</MudTableSortLabel></MudTh>
+        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ExePath)">路径</MudTableSortLabel></MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        @if (string.IsNullOrWhiteSpace(Address))
+        {
+            <MudTd DataLabel="地址">
+                <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
             </MudTd>
-            <MudTd DataLabel="启动类型">@context.StartType</MudTd>
-            <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
-            <MudTd DataLabel="内存">@context.MemoryInfo</MudTd>
-            <MudTd DataLabel="线程">@context.ThreadCount</MudTd>
-            <MudTd DataLabel="路径">@context.ExePath</MudTd>
-        </RowTemplate>
-        <PagerContent>
-            <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
-        </PagerContent>
-    </MudTable>
-</div>
+        }
+        <MudTd DataLabel="名称">@context.ServiceName</MudTd>
+        <MudTd DataLabel="PID">@context.Pid</MudTd>
+        <MudTd DataLabel="描述">@context.DisplayName</MudTd>
+        <MudTd DataLabel="状态">@context.Status</MudTd>
+        <MudTd DataLabel="操作">
+            <MudButtonGroup OverrideStyles="false">
+                <MudTooltip Text="启动" Placement="Placement.Right">
+                    <MudButton Color="Color.Primary"
+                               StartIcon="@Icons.Material.Filled.NotStarted"
+                               Disabled="DisabledStart(context)"
+                               OnClick="() => StartService(context)">
+                        @if (context.Processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudButton>
+                </MudTooltip>
+                <MudTooltip Text="停止" Placement="Placement.Right">
+                    <MudButton Color="Color.Error"
+                               StartIcon="@Icons.Material.Filled.Stop"
+                               Disabled="DisabledStop(context)"
+                               OnClick="() => StopService(context)">
+                        @if (context.Processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudButton>
+                </MudTooltip>
+            </MudButtonGroup>
+        </MudTd>
+        <MudTd DataLabel="启动类型">@context.StartType</MudTd>
+        <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
+        <MudTd DataLabel="内存">@context.MemoryInfo</MudTd>
+        <MudTd DataLabel="线程">@context.ThreadCount</MudTd>
+        <MudTd DataLabel="路径">@context.ExePath</MudTd>
+    </RowTemplate>
+    <PagerContent>
+        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
+    </PagerContent>
+</MudTable>
 
 @code {
     [Parameter]

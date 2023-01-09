@@ -22,7 +22,7 @@ try
     builder.Services.AddScoped<LayoutService>();
     builder.Services.AddMudServices(config =>
     {
-        config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomLeft;
+        config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
     });
 
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

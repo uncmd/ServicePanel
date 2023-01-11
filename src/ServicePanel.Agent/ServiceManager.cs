@@ -23,7 +23,7 @@ public class ServiceManager
     /// </summary>
     /// <param name="serviceName"></param>
     /// <returns></returns>
-    public static ServiceController? GetService(string serviceName)
+    public static ServiceController GetService(string serviceName)
     {
         return GetAllServices().FirstOrDefault(_ => _.ServiceName.ToLower() == serviceName.ToLower());
     }
@@ -39,7 +39,7 @@ public class ServiceManager
         uint counter = 0;
         do
         {
-            ServiceController? service = GetService(serviceName);
+            ServiceController service = GetService(serviceName);
             if (service == null)
             {
                 return false;

@@ -1,5 +1,4 @@
 ﻿using Microsoft.Win32;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.ServiceProcess;
@@ -8,29 +7,24 @@ namespace ServicePanel;
 
 public static class Extensions
 {
-    public static string ToISOString(this DateTime value)
-    {
-        return value.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
-    }
-
     /// <summary>
     /// 获取服务安装文件信息
     /// </summary>
     /// <param name="serviceController"></param>
     /// <returns></returns>
     [SupportedOSPlatform("windows")]
-    public static Tuple<FileInfo?, string?> GetWindowsServiceFileInfo(this ServiceController serviceController)
+    public static Tuple<FileInfo, string> GetWindowsServiceFileInfo(this ServiceController serviceController)
     {
         string key = @"SYSTEM\CurrentControlSet\Services\" + serviceController.ServiceName;
-        string? imagePath = Registry.LocalMachine.OpenSubKey(key)?.GetValue("ImagePath")?.ToString();
+        string imagePath = Registry.LocalMachine.OpenSubKey(key)?.GetValue("ImagePath")?.ToString();
 
         if (string.IsNullOrEmpty(imagePath))
         {
-            return new Tuple<FileInfo?, string?>(null, imagePath);
+            return new Tuple<FileInfo, string>(null, imagePath);
         }
         else
         {
-            var filePath = string.Empty;
+            string filePath;
             if (imagePath.StartsWith("\""))
             {
                 filePath = imagePath.Split('"', StringSplitOptions.RemoveEmptyEntries)[0];
@@ -39,14 +33,19 @@ public static class Extensions
             {
                 filePath = imagePath.Split(' ', StringSplitOptions.RemoveEmptyEntries)[0];
             }
-            
+
             filePath = filePath.Replace("\"", string.Empty);
             imagePath = imagePath.Replace("\"", string.Empty);
 
-            return new Tuple<FileInfo?, string?>(new FileInfo(filePath), imagePath);
+            return new Tuple<FileInfo, string>(new FileInfo(filePath), imagePath);
         }
     }
 
+    /// <summary>
+    /// 获取服务PID
+    /// </summary>
+    /// <param name="serviceController"></param>
+    /// <returns></returns>
     [SupportedOSPlatform("windows")]
     public static int? GetServiceProcessId(this ServiceController serviceController)
     {

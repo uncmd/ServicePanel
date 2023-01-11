@@ -98,7 +98,7 @@ else
 
     private string searchString = "";
     private HashSet<ServiceModel> selectedItems = new HashSet<ServiceModel>();
-    private ServiceModel[]? services;
+    private ServiceModel[] services;
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,7 +117,7 @@ else
         Navigation.NavigateTo($"control-panel/{address}");
     }
 
-    private bool FilterFunc(ServiceModel? element, string searchString)
+    private bool FilterFunc(ServiceModel element, string searchString)
     {
         if (element == null)
             return false;

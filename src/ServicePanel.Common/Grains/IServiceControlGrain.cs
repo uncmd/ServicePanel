@@ -1,10 +1,10 @@
 ﻿using System.Runtime.Versioning;
 using ServicePanel.Models;
 
-namespace ServicePanel;
+namespace ServicePanel.Grains;
 
 [SupportedOSPlatform("windows")]
-public interface IServiceControl : IGrainWithStringKey
+public interface IServiceControlGrain : IGrainWithStringKey
 {
     Task<List<ServiceModel>> GetAllServices();
 

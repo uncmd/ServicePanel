@@ -40,8 +40,8 @@
 @code {
     private bool _loading = true;
     private string searchString = "";
-    private ServiceSummaryModel[]? services;
-    private Timer? _timer;
+    private ServiceSummaryModel[] services;
+    private Timer _timer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,7 +60,7 @@
         Navigation.NavigateTo($"control-panel/{address}");
     }
 
-    private bool FilterFunc(ServiceSummaryModel? element, string searchString)
+    private bool FilterFunc(ServiceSummaryModel element, string searchString)
     {
         if (element == null)
             return false;

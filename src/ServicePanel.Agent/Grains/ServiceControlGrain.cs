@@ -6,18 +6,18 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.ServiceProcess;
 
-namespace ServicePanel;
+namespace ServicePanel.Grains;
 
 [SupportedOSPlatform("windows")]
 [PrimaryKeyAddressPlacementStrategy]
-public class ServiceControl : Grain, IServiceControl
+public class ServiceControlGrain : Grain, IServiceControlGrain
 {
     private readonly IHostEnvironmentStatistics _hostEnvironment;
-    private readonly ILogger<ServiceControl> _logger;
+    private readonly ILogger<ServiceControlGrain> _logger;
 
-    public ServiceControl(
+    public ServiceControlGrain(
         IHostEnvironmentStatistics hostEnvironment,
-        ILogger<ServiceControl> logger)
+        ILogger<ServiceControlGrain> logger)
     {
         _hostEnvironment = hostEnvironment;
         _logger = logger;

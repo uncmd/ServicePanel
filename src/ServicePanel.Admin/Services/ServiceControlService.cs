@@ -1,4 +1,5 @@
-﻿using ServicePanel.Models;
+﻿using ServicePanel.Grains;
+using ServicePanel.Models;
 using System.Runtime.Versioning;
 
 namespace ServicePanel.Admin.Services;
@@ -7,14 +8,14 @@ namespace ServicePanel.Admin.Services;
 public class ServiceControlService
 {
     private readonly ISiloDetailsProvider siloDetailsProvider;
-    private readonly IGrainFactory grainFactory;
+    private readonly IClusterClient clusterClient;
 
     public ServiceControlService(
         ISiloDetailsProvider siloDetailsProvider,
-        IGrainFactory grainFactory)
+        IClusterClient clusterClient)
     {
         this.siloDetailsProvider = siloDetailsProvider;
-        this.grainFactory = grainFactory;
+        this.clusterClient = clusterClient;
     }
 
     public async Task<ServiceModel[]> GetAllServices()
@@ -25,7 +26,7 @@ public class ServiceControlService
 
         foreach (var silloAddress in allSilos.Select(p => p.EndpointAddress))
         {
-            var siloServices = await grainFactory.GetGrain<IServiceControl>(silloAddress).GetAllServices();
+            var siloServices = await clusterClient.GetGrain<IServiceControlGrain>(silloAddress).GetAllServices();
 
             services.AddRange(siloServices);
         }
@@ -38,7 +39,7 @@ public class ServiceControlService
         if (string.IsNullOrWhiteSpace(address))
             return Array.Empty<ServiceModel>();
 
-        return (await grainFactory.GetGrain<IServiceControl>(address).GetAllServices()).ToArray();
+        return (await clusterClient.GetGrain<IServiceControlGrain>(address).GetAllServices()).ToArray();
     }
 
     public async Task<ServiceSummaryModel[]> GetServiceSummaries()
@@ -49,7 +50,7 @@ public class ServiceControlService
 
         foreach (var silloAddress in allSilos.Select(p => p.EndpointAddress))
         {
-            var siloSummary = await grainFactory.GetGrain<IServiceControl>(silloAddress).GetServiceSummaries();
+            var siloSummary = await clusterClient.GetGrain<IServiceControlGrain>(silloAddress).GetServiceSummaries();
 
             services.Add(siloSummary);
         }
@@ -59,13 +60,13 @@ public class ServiceControlService
 
     public async Task<string> StartService(ServiceModel serviceModel)
     {
-        return await grainFactory.GetGrain<IServiceControl>(serviceModel.Address)
+        return await clusterClient.GetGrain<IServiceControlGrain>(serviceModel.Address)
             .StartService(serviceModel.ServiceName);
     }
 
     public async Task<string> StopService(ServiceModel serviceModel)
     {
-        return await grainFactory.GetGrain<IServiceControl>(serviceModel.Address)
+        return await clusterClient.GetGrain<IServiceControlGrain>(serviceModel.Address)
             .StopService(serviceModel.ServiceName);
     }
 }

@@ -2,9 +2,7 @@ using MudBlazor;
 using MudBlazor.Services;
 using Orleans.Clustering.Redis;
 using Serilog;
-using ServicePanel;
-using ServicePanel.Admin.Services;
-using System.Runtime.InteropServices;
+using ServicePanel.Admin;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,20 +17,14 @@ try
     builder.Services.AddRazorPages();
     builder.Services.AddServerSideBlazor();
     builder.Services.AddServicePanel();
-    builder.Services.AddScoped<LayoutService>();
     builder.Services.AddMudServices(config =>
     {
         config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
     });
 
-    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-    {
-        builder.Services.AddSingleton<ServiceControlService>();
-    }
-
     var redisOptions = builder.Configuration
         .GetSection("RedisClusteringOptions")
-        .Get< RedisClusteringOptions>();
+        .Get<RedisClusteringOptions>();
 
     if (redisOptions == null)
     {
@@ -42,7 +34,7 @@ try
 
     builder.Host
         .UseSerilog()
-        .UseOrleans((context, builder) =>
+        .UseOrleansClient(builder =>
         {
             builder.UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database);
         })

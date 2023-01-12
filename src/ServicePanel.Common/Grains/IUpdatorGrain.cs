@@ -2,5 +2,9 @@
 
 public interface IUpdatorGrain : IGrainWithStringKey
 {
-    public Task Update(string updateAddress, string filePath, string fileName, string[] serviceNames);
+    public Task Update(byte[] buffers, string fileName, string[] serviceNames);
+
+    Task Subscribe(IChat observer);
+
+    Task UnSubscribe(IChat observer);
 }

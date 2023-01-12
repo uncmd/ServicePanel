@@ -20,8 +20,6 @@ public static class ServiceCollectionExtensions
             WindowsEnvironmentStatisticsServices.RegisterServices<ISiloLifecycle>(services);
         }
 
-        services.AddHttpClient();
-
         return services;
     }
 }

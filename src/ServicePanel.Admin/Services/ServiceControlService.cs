@@ -1,4 +1,5 @@
-﻿using ServicePanel.Grains;
+﻿using Microsoft.AspNetCore.Components.Forms;
+using ServicePanel.Grains;
 using ServicePanel.Models;
 using System.Runtime.Versioning;
 
@@ -7,6 +8,9 @@ namespace ServicePanel.Admin.Services;
 [SupportedOSPlatform("windows")]
 public class ServiceControlService
 {
+    private const string UpdateFileFolder = "UpdateFiles";
+    private const long maxFileSize = 1024 * 1024 * 30;
+
     private readonly ISiloDetailsProvider siloDetailsProvider;
     private readonly IClusterClient clusterClient;
 
@@ -68,5 +72,54 @@ public class ServiceControlService
     {
         return await clusterClient.GetGrain<IServiceControlGrain>(serviceModel.Address)
             .StopService(serviceModel.ServiceName);
+    }
+
+    public async Task Update(List<ServiceModel> serviceModels, IBrowserFile browserFile)
+    {
+        foreach (var serviceModel in serviceModels.GroupBy(p => p.Address))
+        {
+            var serviceNames = serviceModel.Select(p => p.ServiceName).ToList();
+            await Update(serviceModel.Key, serviceNames, browserFile);
+        }
+    }
+
+    public async Task Update(ServiceModel serviceModel, IBrowserFile browserFile)
+    {
+        var serviceNames = new List<string> { serviceModel.ServiceName };
+        await Update(serviceModel.Address, serviceNames, browserFile);
+    }
+
+    private async Task Update(string address, List<string> serviceNames, IBrowserFile browserFile)
+    {
+        var buffers = await BrowserFileToByteArray(browserFile);
+
+        await SaveUpdateFile(buffers, browserFile.Name);
+
+        await clusterClient.GetGrain<IUpdatorGrain>(address)
+            .Update(buffers, browserFile.Name, serviceNames.ToArray());
+    }
+
+    private static async Task SaveUpdateFile(byte[] buffers, string name)
+    {
+        string fileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                UpdateFileFolder, Guid.NewGuid().ToString("N"));
+        if (!Directory.Exists(fileFolder))
+        {
+            Directory.CreateDirectory(fileFolder);
+        }
+        string fileName = Path.Combine(fileFolder, name);
+
+        using var fileStream = new FileStream(fileName, FileMode.Create);
+        await fileStream.WriteAsync(buffers);
+    }
+
+    private static async Task<byte[]> BrowserFileToByteArray(IBrowserFile browserFile)
+    {
+        var fileStream = browserFile.OpenReadStream(maxFileSize);
+        using (MemoryStream memoryStream = new MemoryStream())
+        {
+            await fileStream.CopyToAsync(memoryStream);
+            return memoryStream.ToArray();
+        }
     }
 }

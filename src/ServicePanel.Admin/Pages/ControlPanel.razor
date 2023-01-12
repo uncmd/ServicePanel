@@ -4,13 +4,9 @@
 @inject ServiceControlService ControlService
 @inject IDialogService DialogService
 
-@if (string.IsNullOrWhiteSpace(Address))
+@if (!string.IsNullOrWhiteSpace(Address))
 {
-    <PageTitle>Windows服务面板</PageTitle>
-}
-else
-{
-    <PageTitle>@Address - Windows服务面板</PageTitle>
+    <PageTitle>@Address - Windows服务控制面板</PageTitle>
 }
 
 <MudTable Items="@services"
@@ -73,6 +69,16 @@ else
                                StartIcon="@Icons.Material.Filled.Stop"
                                Disabled="DisabledStop(context)"
                                OnClick="() => StopService(context)">
+                        @if (context.Processing)
+                        {
+                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        }
+                    </MudButton>
+                </MudTooltip>
+                <MudTooltip Text="更新" Placement="Placement.Right">
+                    <MudButton Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.Update"
+                               OnClick="() => UpdateService(context)">
                         @if (context.Processing)
                         {
                             <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -208,13 +214,12 @@ else
         }
     }
 
-    private void OpenDialog(ServiceModel serviceModel)
+    private void UpdateService(ServiceModel serviceModel)
     {
         var parameters = new DialogParameters();
         parameters.Add("ServiceModel", serviceModel);
 
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Medium };
-
-        DialogService.Show<ServiceDetailDialog>("", parameters, options);
+        DialogService.Show<ServiceUpdateDialog>("", parameters, options);
     }
 }

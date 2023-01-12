@@ -10,6 +10,9 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServicePanel.Common", "src\ServicePanel.Common\ServicePanel.Common.csproj", "{75943DCF-4E58-4694-9F3D-5BCA6FB1B7D0}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServicePanel.Admin", "src\ServicePanel.Admin\ServicePanel.Admin.csproj", "{B53BAB9A-DC45-4EE2-A671-A85ECD959958}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1D52A5FB-711A-4DA4-9C52-EC9894B27B05} = {1D52A5FB-711A-4DA4-9C52-EC9894B27B05}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

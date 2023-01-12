@@ -1,0 +1,94 @@
+﻿@using Orleans.Runtime
+@using ServicePanel.Grains
+@implements IChat
+@inject ServiceControlService Service
+@inject IClusterClient client
+
+<MudDialog>
+    <DialogContent>
+        <MudContainer Style="min-height: 40vh; max-height: 70vh; height: auto; overflow-y: scroll">
+            @foreach (var log in logs)
+            {
+                <MudText>@log</MudText>
+            }
+        </MudContainer>
+
+        @if (file != null)
+        {
+            <MudList>
+                <MudListItem Icon="@Icons.Material.Filled.AttachFile" @key="@file">
+                    @file.Name <code>@(Math.Round((double)file.Size / 1024 / 1024, 2)) MB</code>
+                </MudListItem>
+            </MudList>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudFileUpload T="IBrowserFile" Accept=".rar,.zip,7z" FilesChanged="UploadFiles">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           for="@context">
+                    上传更新文件
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Submit" Disabled="SubmitDisabled()">开始更新</MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [Parameter]
+    public ServiceModel serviceModel { get; set; }
+
+    IBrowserFile file;
+    List<string> logs = new List<string>();
+
+    private void UploadFiles(IBrowserFile file)
+    {
+        this.file = file;
+        logs.Add($"{DateTime.Now} 上传文件{file.Name}");
+    }
+
+    private bool SubmitDisabled()
+    {
+        return file == null;
+    }
+
+    private async Task Submit()
+    {
+        if (file == null)
+        {
+            Snackbar.Add("请先上传更新文件", Severity.Error);
+            return;
+        }
+
+        logs.Add($"{DateTime.Now} {serviceModel.Address} 开始更新服务: {serviceModel.ServiceName}");
+
+        await SubMessage();
+
+        await Service.Update(serviceModel, file);
+
+        Snackbar.Add("服务更新成功", Severity.Success);
+
+        await UnSubscribe();
+    }
+
+    private async Task SubMessage()
+    {
+        var grain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
+        var chat = client.CreateObjectReference<IChat>(this);
+        await grain.Subscribe(chat);
+    }
+
+    private async Task UnSubscribe()
+    {
+        var grain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
+        await grain.UnSubscribe(this);
+    }
+
+    public void ReceiveMessage(string message)
+    {
+        logs.Add(message);
+    }
+}

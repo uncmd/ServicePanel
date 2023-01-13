@@ -219,7 +219,7 @@
         var parameters = new DialogParameters();
         parameters.Add("ServiceModel", serviceModel);
 
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.Medium };
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
         DialogService.Show<ServiceUpdateDialog>("", parameters, options);
     }
 }

@@ -2,5 +2,5 @@
 
 public interface IChat : IGrainObserver
 {
-    void ReceiveMessage(string message);
+    Task ReceiveMessage(string message);
 }

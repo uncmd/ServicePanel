@@ -7,6 +7,7 @@
 <MudDialog>
     <DialogContent>
         <MudContainer Style="min-height: 40vh; max-height: 70vh; height: auto; overflow-y: scroll">
+            <MudText>先上传压缩文件，然后点击开始更新来更新服务</MudText>
             @foreach (var log in logs)
             {
                 <MudText>@log</MudText>
@@ -43,6 +44,8 @@
 
     IBrowserFile file;
     List<string> logs = new List<string>();
+    IChat chatReference;
+    IUpdatorGrain updatorGrain;
 
     private void UploadFiles(IBrowserFile file)
     {
@@ -76,19 +79,19 @@
 
     private async Task SubMessage()
     {
-        var grain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
-        var chat = client.CreateObjectReference<IChat>(this);
-        await grain.Subscribe(chat);
+        updatorGrain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
+        chatReference = client.CreateObjectReference<IChat>(this);
+        await updatorGrain.Subscribe(chatReference);
     }
 
     private async Task UnSubscribe()
     {
-        var grain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
-        await grain.UnSubscribe(this);
+        await updatorGrain.UnSubscribe(chatReference);
     }
 
-    public void ReceiveMessage(string message)
+    public async Task ReceiveMessage(string message)
     {
         logs.Add(message);
+        await InvokeAsync(() => StateHasChanged());
     }
 }

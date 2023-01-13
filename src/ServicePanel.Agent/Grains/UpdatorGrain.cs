@@ -14,7 +14,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
     private readonly string UpdateFileFolder = "TempUpdateFile";
 
     private readonly ILogger<UpdatorGrain> logger;
-    private readonly RetryPolicy fileUsedRetryPolicy;
+    private AsyncRetryPolicy fileUsedRetryPolicy;
 
     private readonly ObserverManager<IChat> _subsManager;
 
@@ -22,13 +22,13 @@ public class UpdatorGrain : Grain, IUpdatorGrain
     {
         this.logger = logger;
 
-        fileUsedRetryPolicy = Policy.Handle<IOException>(ex => ex.Message.Contains("used by another process"))
-            .WaitAndRetry(
+        fileUsedRetryPolicy = Policy.Handle<IOException>()
+            .WaitAndRetryAsync(
                 5,
                 retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // 2 4 8 16 32
-                (exception, timeSpan, retryCount, context) =>
+                async (exception, timeSpan, retryCount, context) =>
                 {
-                    logger.LogWarning(exception, "复制文件异常，{TotalSeconds}s后开始重试 {RetryCount}/3", timeSpan.TotalSeconds, retryCount);
+                    await WriteMessage($"复制文件异常，{timeSpan.TotalSeconds}s后开始重试 {retryCount}/3");
                 }
             );
 
@@ -73,7 +73,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
                 // 复制 文件占用重试??
                 var serviceModel = await serviceControl.GetService(serviceName);
-                CopyDirectory(targetDirectory, serviceModel.DirectoryName);
+                await CopyDirectory(targetDirectory, serviceModel.DirectoryName);
 
                 // 启动服务
                 var startResult = await serviceControl.StartService(serviceName);
@@ -81,7 +81,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
             }
 
             // 删除临时目录
-            fileUsedRetryPolicy.Execute(() => DeleteDirectory(zipFileFolder));
+            await fileUsedRetryPolicy.ExecuteAsync(async () => await DeleteDirectory(zipFileFolder));
             await WriteMessage("更新完成");
         }
         catch (Exception ex)
@@ -109,7 +109,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         }
     }
 
-    private void CopyDirectory(string sourceDirName, string destDirName)
+    private async Task CopyDirectory(string sourceDirName, string destDirName)
     {
         if (!Directory.Exists(destDirName))
         {
@@ -118,33 +118,32 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
         foreach (string sourceFileName in Directory.GetFiles(sourceDirName))
         {
-            fileUsedRetryPolicy.Execute(() => CopyFileReTry(sourceFileName, destDirName));
+            await fileUsedRetryPolicy.ExecuteAsync(async () => await CopyFileReTry(sourceFileName, destDirName));
         }
     }
 
-    private async void CopyFileReTry(string sourceFileName, string destDirName)
+    private async Task CopyFileReTry(string sourceFileName, string destDirName)
     {
         string destFileName = Path.Combine(destDirName, Path.GetFileName(sourceFileName));
         File.Copy(sourceFileName, destFileName, true);
         await WriteMessage($"{sourceFileName} 复制到 {destFileName}");
     }
 
-    private Task WriteMessage(string message, Exception ex = null)
+    private async Task WriteMessage(string message, Exception ex = null)
     {
-        _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {message}"));
+        await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {message}"));
         if (ex == null)
         {
             logger.LogInformation(message);
         }
         else
         {
-            _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {ex.Message}"));
+            await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {ex.Message}"));
             logger.LogError(ex, message);
         }
-        return Task.CompletedTask;
     }
 
-    private void DeleteDirectory(string path)
+    private Task DeleteDirectory(string path)
     {
         try
         {
@@ -154,6 +153,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         {
             logger.LogWarning(ex, "删除目录 {Path} 失败", path);
         }
+        return Task.CompletedTask;
     }
 
     // Clients call this to subscribe.

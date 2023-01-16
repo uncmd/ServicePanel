@@ -11,18 +11,33 @@
     <MudSnackbarProvider />
 
     <MudLayout>
-        <MainBody>
-            @Body
-        </MainBody>
+        <ErrorBoundary @ref="errorBoundary">
+            <ChildContent>
+                <MainBody>
+                    @Body
+                </MainBody>
+            </ChildContent>
+            <ErrorContent>
+                <ErrorView Exception=context />
+            </ErrorContent>
+        </ErrorBoundary>
     </MudLayout>
 </MudRTLProvider>
 
 @code {
+    private ErrorBoundary errorBoundary;
+
     protected override void OnInitialized()
     {
         LayoutService.MajorUpdateOccured += LayoutServiceOnMajorUpdateOccured;
         LayoutService.SetBaseTheme(ServicePanelTheme.DefaultTheme());
         base.OnInitialized();
+    }
+
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        errorBoundary?.Recover();
     }
 
     public void Dispose()

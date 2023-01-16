@@ -1,0 +1,17 @@
+﻿@inject IWebHostEnvironment hostEnvironment
+
+<MudText Typo="Typo.h3">抛出类型为: [ @Exception.GetType().Name ] 的异常</MudText>
+<MudText Typo="Typo.h4">@Exception.Message</MudText>
+
+@if (hostEnvironment != null && hostEnvironment.IsDevelopment())
+{
+    <environment include="Development">
+        <MudText Typo="Typo.body1">@Exception.StackTrace</MudText>
+    </environment>
+}
+
+@code {
+    [Parameter]
+    [EditorRequired]
+    public Exception Exception { get; set; }
+}

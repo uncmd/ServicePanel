@@ -220,6 +220,6 @@
         parameters.Add("ServiceModel", serviceModel);
 
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
-        DialogService.Show<ServiceUpdateDialog>("", parameters, options);
+        DialogService.Show<ServiceUpdateDialog>($"{serviceModel.Address} {serviceModel.ServiceName}", parameters, options);
     }
 }

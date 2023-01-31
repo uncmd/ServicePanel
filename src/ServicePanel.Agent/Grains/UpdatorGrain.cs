@@ -22,13 +22,15 @@ public class UpdatorGrain : Grain, IUpdatorGrain
     {
         this.logger = logger;
 
+        // todo: 可配置重试策略
+        int count = 5;
         fileUsedRetryPolicy = Policy.Handle<IOException>()
             .WaitAndRetryAsync(
-                5,
+                count,
                 retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), // 2 4 8 16 32
                 async (exception, timeSpan, retryCount, context) =>
                 {
-                    await WriteMessage($"复制文件异常，{timeSpan.TotalSeconds}s后开始重试 {retryCount}/3");
+                    await WriteMessage($"复制文件异常：{exception.Message}，{timeSpan.TotalSeconds}s后开始重试 {retryCount}/{count}");
                 }
             );
 
@@ -81,7 +83,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
             }
 
             // 删除临时目录
-            await fileUsedRetryPolicy.ExecuteAsync(async () => await DeleteDirectory(zipFileFolder));
+            DeleteDirectory(zipFileFolder);
             await WriteMessage("更新完成");
         }
         catch (Exception ex)
@@ -124,9 +126,10 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
     private async Task CopyFileReTry(string sourceFileName, string destDirName)
     {
-        string destFileName = Path.Combine(destDirName, Path.GetFileName(sourceFileName));
+        var fileName = Path.GetFileName(sourceFileName);
+        string destFileName = Path.Combine(destDirName, fileName);
         File.Copy(sourceFileName, destFileName, true);
-        await WriteMessage($"{sourceFileName} 复制到 {destFileName}");
+        await WriteMessage($"{fileName} 复制到 {destDirName}");
     }
 
     private async Task WriteMessage(string message, Exception ex = null)
@@ -143,7 +146,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         }
     }
 
-    private Task DeleteDirectory(string path)
+    private void DeleteDirectory(string path)
     {
         try
         {
@@ -153,10 +156,13 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         {
             logger.LogWarning(ex, "删除目录 {Path} 失败", path);
         }
-        return Task.CompletedTask;
     }
 
-    // Clients call this to subscribe.
+    /// <summary>
+    /// 客户端调用它来订阅
+    /// </summary>
+    /// <param name="observer"></param>
+    /// <returns></returns>
     public Task Subscribe(IChat observer)
     {
         _subsManager.Subscribe(observer, observer);
@@ -164,7 +170,11 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         return Task.CompletedTask;
     }
 
-    //Clients use this to unsubscribe and no longer receive messages.
+    /// <summary>
+    /// 客户端使用此选项取消订阅，不再接收消息
+    /// </summary>
+    /// <param name="observer"></param>
+    /// <returns></returns>
     public Task UnSubscribe(IChat observer)
     {
         _subsManager.Unsubscribe(observer);

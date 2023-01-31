@@ -6,41 +6,44 @@
 
 <MudDialog>
     <DialogContent>
-        <MudContainer Style="min-height: 40vh; max-height: 70vh; height: auto; overflow-y: scroll">
-            <MudText>先上传压缩文件，然后点击开始更新来更新服务</MudText>
-            @foreach (var log in logs)
-            {
-                <MudText>@log</MudText>
-            }
-        </MudContainer>
+        <MudStack Style="width: 100%">
+            <MudFileUpload T="IBrowserFile" Accept=".rar,.zip,7z" FilesChanged="UploadFiles" Hidden="false" Class="flex-1" InputClass="absolute mud-width-full mud-height-full overflow-hidden z-20" InputStyle="opacity:0"
+                           @ondragenter="@SetDragClass" @ondragleave="@ClearDragClass" @ondragend="@ClearDragClass">
+                <ButtonTemplate>
+                    <MudPaper Height="100px" Outlined="true" Class="@DragClass">
+                        <MudText Typo="Typo.h6">先上传压缩文件，然后单击 <code>开始更新</code> 来更新服务</MudText>
+                        @if (file != null)
+                        {
+                            <MudList>
+                                <MudListItem Icon="@Icons.Material.Filled.AttachFile" @key="@file">
+                                    @file.Name <code>@(Math.Round((double)file.Size / 1024 / 1024, 2)) MB</code>
+                                </MudListItem>
+                            </MudList>
+                        }
+                    </MudPaper>
+                </ButtonTemplate>
+            </MudFileUpload>
 
-        @if (file != null)
-        {
-            <MudList>
-                <MudListItem Icon="@Icons.Material.Filled.AttachFile" @key="@file">
-                    @file.Name <code>@(Math.Round((double)file.Size / 1024 / 1024, 2)) MB</code>
-                </MudListItem>
-            </MudList>
-        }
+            <MudPaper>
+                <MudContainer Style="min-height: 40vh; max-height: 70vh; height: auto; overflow-y: scroll">
+                    @foreach (var log in logs)
+                    {
+                        <MudText>@log</MudText>
+                    }
+                </MudContainer>
+            </MudPaper>
+        </MudStack>
     </DialogContent>
     <DialogActions>
-        <MudFileUpload T="IBrowserFile" Accept=".rar,.zip,7z" FilesChanged="UploadFiles">
-            <ButtonTemplate>
-                <MudButton HtmlTag="label"
-                           Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           StartIcon="@Icons.Material.Filled.CloudUpload"
-                           for="@context">
-                    上传更新文件
-                </MudButton>
-            </ButtonTemplate>
-        </MudFileUpload>
         <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Submit" Disabled="SubmitDisabled()">开始更新</MudButton>
     </DialogActions>
 </MudDialog>
 @code {
     [Parameter]
     public ServiceModel serviceModel { get; set; }
+
+    private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
+    private string DragClass = DefaultDragClass;
 
     IBrowserFile file;
     List<string> logs = new List<string>();
@@ -49,6 +52,7 @@
 
     private void UploadFiles(IBrowserFile file)
     {
+        ClearDragClass();
         this.file = file;
         logs.Add($"{DateTime.Now} 上传文件{file.Name}");
     }
@@ -70,11 +74,16 @@
 
         await SubMessage();
 
-        await Service.Update(serviceModel, file);
+        try
+        {
+            await Service.Update(serviceModel, file);
 
-        Snackbar.Add("服务更新成功", Severity.Success);
-
-        await UnSubscribe();
+            Snackbar.Add($"服务<b>{serviceModel.ServiceName}</b>更新成功", Severity.Success);
+        }
+        finally
+        {
+            await UnSubscribe();
+        }
     }
 
     private async Task SubMessage()
@@ -93,5 +102,15 @@
     {
         logs.Add(message);
         await InvokeAsync(() => StateHasChanged());
+    }
+
+    private void SetDragClass()
+    {
+        DragClass = $"{DefaultDragClass} mud-border-primary";
+    }
+
+    private void ClearDragClass()
+    {
+        DragClass = DefaultDragClass;
     }
 }

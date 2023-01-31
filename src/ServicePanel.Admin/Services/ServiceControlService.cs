@@ -1,7 +1,10 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
+using Orleans;
 using ServicePanel.Grains;
 using ServicePanel.Models;
+using System.Net;
 using System.Runtime.Versioning;
+using System.ServiceProcess;
 
 namespace ServicePanel.Admin.Services;
 
@@ -97,6 +100,13 @@ public class ServiceControlService
 
         await clusterClient.GetGrain<IUpdatorGrain>(address)
             .Update(buffers, browserFile.Name, serviceNames.ToArray());
+    }
+
+    public async Task<List<UpdateRecord>> GetUpdateRecords(ServiceModel serviceModel)
+    {
+        var recordGrain = clusterClient.GetGrain<IUpdateRecordGrain>($"{serviceModel.Address}-{serviceModel.ServiceName}");
+
+        return await recordGrain.GetAll();
     }
 
     private static async Task SaveUpdateFile(byte[] buffers, string name)

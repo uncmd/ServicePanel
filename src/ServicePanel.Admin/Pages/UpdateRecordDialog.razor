@@ -1,0 +1,31 @@
+﻿@inject ServiceControlService Service
+
+<MudDialog>
+    <DialogContent>
+        <MudTable Items="records">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">@serviceModel.Address @serviceModel.ServiceName</MudText>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateRecord, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
+                <MudTh>文件数量</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
+                <MudTd DataLabel="文件数量">@context.TotalFiles</MudTd>
+            </RowTemplate>
+        </MudTable>
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [Parameter]
+    public ServiceModel serviceModel { get; set; }
+
+    private List<UpdateRecord> records;
+
+    protected override async Task OnInitializedAsync()
+    {
+        records = await Service.GetUpdateRecords(serviceModel);
+    }
+}

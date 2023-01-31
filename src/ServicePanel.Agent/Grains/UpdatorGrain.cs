@@ -1,6 +1,7 @@
 ﻿using Orleans.Utilities;
 using Polly;
 using Polly.Retry;
+using ServicePanel.Models;
 using SharpCompress.Archives;
 using SharpCompress.Common;
 using System.Runtime.Versioning;
@@ -18,7 +19,8 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
     private readonly ObserverManager<IChat> _subsManager;
 
-    public UpdatorGrain(ILogger<UpdatorGrain> logger)
+    public UpdatorGrain(
+        ILogger<UpdatorGrain> logger)
     {
         this.logger = logger;
 
@@ -65,6 +67,8 @@ public class UpdatorGrain : Grain, IUpdatorGrain
             Decompression(zipFile, targetDirectory);
             await WriteMessage("更新文件解压完成");
 
+            var totalFiles = GetFilesCount(new DirectoryInfo(targetDirectory));
+
             var serviceControl = GrainFactory.GetGrain<IServiceControlGrain>(this.GetPrimaryKeyString());
             foreach (var serviceName in serviceNames)
             {
@@ -80,6 +84,9 @@ public class UpdatorGrain : Grain, IUpdatorGrain
                 // 启动服务
                 var startResult = await serviceControl.StartService(serviceName);
                 await WriteMessage(startResult);
+
+                // 保存更新记录
+                await SaveRecord(serviceName, totalFiles);
             }
 
             // 删除临时目录
@@ -134,14 +141,14 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
     private async Task WriteMessage(string message, Exception ex = null)
     {
-        await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {message}"));
+        await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {message}"));
         if (ex == null)
         {
             logger.LogInformation(message);
         }
         else
         {
-            await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {this.GetPrimaryKeyString()} {ex.Message}"));
+            await _subsManager.Notify(s => s.ReceiveMessage($"{DateTime.Now} {ex.Message}"));
             logger.LogError(ex, message);
         }
     }
@@ -156,6 +163,32 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         {
             logger.LogWarning(ex, "删除目录 {Path} 失败", path);
         }
+    }
+
+    private async Task SaveRecord(string serviceName, int totalFiles)
+    {
+        var address = this.GetPrimaryKeyString();
+        UpdateRecord record = new UpdateRecord
+        {
+            Address = address,
+            ServiceName = serviceName,
+            UpdateTime = DateTime.Now,
+            TotalFiles = totalFiles
+        };
+
+        var recordGrain = GrainFactory.GetGrain<IUpdateRecordGrain>($"{address}-{serviceName}");
+        await recordGrain.Add(record);
+    }
+
+    private int GetFilesCount(DirectoryInfo dirInfo)
+    {
+        int totalFiles = 0;
+        totalFiles += dirInfo.GetFiles().Length;
+        foreach (var subDir in dirInfo.GetDirectories())
+        {
+            totalFiles += GetFilesCount(subDir);
+        }
+        return totalFiles;
     }
 
     /// <summary>

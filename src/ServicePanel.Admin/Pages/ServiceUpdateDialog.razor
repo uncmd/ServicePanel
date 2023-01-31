@@ -3,6 +3,7 @@
 @implements IChat
 @inject ServiceControlService Service
 @inject IClusterClient client
+@inject IDialogService DialogService
 
 <MudDialog>
     <DialogContent>
@@ -36,6 +37,7 @@
     </DialogContent>
     <DialogActions>
         <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="Submit" Disabled="SubmitDisabled()">开始更新</MudButton>
+        <MudButton Color="Color.Info" Variant="Variant.Filled" OnClick="OpenUpdateRecordDialog">更新历史</MudButton>
     </DialogActions>
 </MudDialog>
 @code {
@@ -112,5 +114,14 @@
     private void ClearDragClass()
     {
         DragClass = DefaultDragClass;
+    }
+
+    private void OpenUpdateRecordDialog()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ServiceModel", serviceModel);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
+        DialogService.Show<UpdateRecordDialog>("", parameters, options);
     }
 }

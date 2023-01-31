@@ -36,7 +36,13 @@ try
                 Log.Error("Î´ÅäÖÃredis£¬ÇëÌí¼ÓRedisClusteringOptionsÅäÖÃÏî");
                 throw new ArgumentException("Î´ÅäÖÃredis£¬ÇëÌí¼ÓRedisClusteringOptionsÅäÖÃÏî");
             }
-            builder.UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database);
+            builder
+                .UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database)
+                .AddRedisGrainStorageAsDefault(options =>
+                {
+                    options.ConnectionString = redisOptions.ConnectionString;
+                    options.DatabaseNumber = redisOptions.Database;
+                });
         })
         .UseWindowsService()
         .Build();

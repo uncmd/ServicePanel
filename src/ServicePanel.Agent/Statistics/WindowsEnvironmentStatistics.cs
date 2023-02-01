@@ -1,6 +1,5 @@
-﻿using CZGL.SystemInfo;
-using Microsoft.Extensions.Logging;
-using Orleans.Statistics;
+﻿using Orleans.Statistics;
+using ServicePanel.Agent.Statistics;
 
 namespace ServicePanel.Statistics;
 
@@ -128,11 +127,11 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
 
     private Task UpdatePhysicalMemory()
     {
-        var memoryValue = MemoryHelper.GetMemoryValue();
+        var (totalMemory, availableMemory) = MemoryHelper.GetMemory();
 
-        TotalPhysicalMemory ??= (long)memoryValue.TotalPhysicalMemory;
+        TotalPhysicalMemory ??= (long)totalMemory;
 
-        AvailableMemory = (long)memoryValue.AvailablePhysicalMemory;
+        AvailableMemory = (long)availableMemory;
 
         return Task.CompletedTask;
     }

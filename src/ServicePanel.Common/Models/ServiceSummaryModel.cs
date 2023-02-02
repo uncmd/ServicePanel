@@ -21,11 +21,11 @@ public class ServiceSummaryModel
     public string OSDescription { get; set; }
 
     [Id(5)]
-    public string MemInfo { get; set; }
+    public float? CpuUsage { get; set; }
 
     [Id(6)]
-    public string CpuInfo { get; set; }
+    public long? TotalPhysicalMemory { get; set; }
 
     [Id(7)]
-    public string DeviceInfo { get; set; }
+    public long? AvailableMemory { get; set; }
 }

@@ -14,7 +14,7 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
     /// <inheritdoc />
     public long? AvailableMemory { get; private set; }
 
-    private readonly TimeSpan MONITOR_PERIOD = TimeSpan.FromSeconds(5);
+    private readonly TimeSpan MONITOR_PERIOD = TimeSpan.FromSeconds(3);
 
     private CancellationTokenSource _cts;
     private Task _monitorTask;

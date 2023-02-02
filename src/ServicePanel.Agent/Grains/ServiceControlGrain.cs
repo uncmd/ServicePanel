@@ -62,19 +62,10 @@ public class ServiceControlGrain : Grain, IServiceControlGrain
             RuningCount = services.Count(p => p.Status == ServiceControllerStatus.Running),
             OSArchitecture = RuntimeInformation.OSArchitecture,
             OSDescription = RuntimeInformation.OSDescription,
+            CpuUsage = _hostEnvironment?.CpuUsage,
+            TotalPhysicalMemory = _hostEnvironment?.TotalPhysicalMemory,
+            AvailableMemory = _hostEnvironment?.AvailableMemory
         };
-
-        if (_hostEnvironment != null)
-        {
-            if (_hostEnvironment.CpuUsage.HasValue)
-            {
-                summaryModel.CpuInfo = $"{(int)(_hostEnvironment.CpuUsage * 100)} %";
-            }
-            if (_hostEnvironment.AvailableMemory.HasValue && _hostEnvironment.TotalPhysicalMemory.HasValue)
-            {
-                summaryModel.MemInfo = $"{(_hostEnvironment.TotalPhysicalMemory - _hostEnvironment.AvailableMemory) * 100 / _hostEnvironment.TotalPhysicalMemory} %";
-            }
-        }
 
         return Task.FromResult(summaryModel);
     }

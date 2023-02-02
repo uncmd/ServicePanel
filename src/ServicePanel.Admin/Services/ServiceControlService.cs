@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
-using Orleans;
 using ServicePanel.Grains;
 using ServicePanel.Models;
-using System.Net;
 using System.Runtime.Versioning;
-using System.ServiceProcess;
 
 namespace ServicePanel.Admin.Services;
 
@@ -63,6 +60,11 @@ public class ServiceControlService
         }
 
         return services.ToArray();
+    }
+
+    public async Task<ServiceSummaryModel> GetServiceSummary(string address)
+    {
+        return await clusterClient.GetGrain<IServiceControlGrain>(address).GetServiceSummaries();
     }
 
     public async Task<string> StartService(ServiceModel serviceModel)

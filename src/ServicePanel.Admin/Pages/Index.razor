@@ -3,6 +3,7 @@
 @using System.ServiceProcess
 @inject NavigationManager Navigation
 @inject ServiceControlService ControlService
+@inject IDialogService DialogService
 
 <MudTable Items="@services" 
     Hover="true" 
@@ -32,8 +33,16 @@
         <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
         <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
         <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
-        <MudTd DataLabel="Cpu">@context.CpuInfo</MudTd>
-        <MudTd DataLabel="内存">@context.MemInfo</MudTd>
+        <MudTd DataLabel="Cpu">
+            <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
+                @($"{(int)(context.CpuUsage * 100)} %")
+            </MudButton>
+        </MudTd>
+        <MudTd DataLabel="内存">
+            <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
+                @($"{(context.TotalPhysicalMemory - context.AvailableMemory) * 100 / context.TotalPhysicalMemory} %")
+            </MudButton>
+        </MudTd>
     </RowTemplate>
 </MudTable>
 
@@ -69,6 +78,15 @@
         if (element.Address.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         return false;
+    }
+
+    private void ShowMonitorDialog(ServiceSummaryModel serviceModel)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ServiceModel", serviceModel);
+
+        var options = new DialogOptions() { CloseButton = true, FullScreen = true };
+        DialogService.Show<MonitorDialog>("", parameters, options);
     }
 
     public void Dispose()

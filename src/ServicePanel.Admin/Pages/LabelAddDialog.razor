@@ -1,0 +1,35 @@
+﻿@inject ServiceControlService ControlService
+
+<MudDialog>
+    <DialogContent>
+        <MudTextField T="string" @bind-Value="Name" Label="标签" Required="true" RequiredError="标签不能为空"></MudTextField>
+        <MudTextField T="string" @bind-Value="Description" Label="描述"></MudTextField>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary" OnClick="Submit">确定</MudButton>
+        <MudButton OnClick="Cancel">取消</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter]
+    public ServiceSummaryModel serviceModel { get; set; }
+
+    string Name { get; set; }
+    string Description{ get; set; }
+
+    async Task Submit()
+    {
+        var label = new ServiceLabel
+        {
+            Address = serviceModel.Address,
+            Name = this.Name,
+            Description = this.Description
+        };
+        await ControlService.AddLabel(label);
+        MudDialog.Close(DialogResult.Ok(label));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}

@@ -18,8 +18,9 @@
     </ToolBarContent>
     <HeaderContent>
         <MudTh><MudTableSortLabel SortBy="new Func<ServiceSummaryModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
-        <MudTh>服务数量</MudTh>
-        <MudTh>运行中的服务数量</MudTh>
+        <MudTh>服务数</MudTh>
+        <MudTh>运行中的服务</MudTh>
+        <MudTh>标签</MudTh>
         <MudTh>系统架构</MudTh>
         <MudTh>系统名称</MudTh>
         <MudTh>Cpu</MudTh>
@@ -31,6 +32,13 @@
         </MudTd>
         <MudTd DataLabel="服务数量">@context.Count</MudTd>
         <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
+        <MudTd DataLabel="标签">
+            @foreach (var label in GetLabels(context.Address))
+            {
+                <MudAvatar Color="Color.Primary">label</MudAvatar>
+            }
+            <MudIconButton Icon="@Icons.Material.Filled.NewLabel" OnClick="() => AddLabels(context)" />
+        </MudTd>
         <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
         <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
         <MudTd DataLabel="Cpu">
@@ -51,10 +59,12 @@
     private string searchString = "";
     private ServiceSummaryModel[] services;
     private Timer _timer;
+    private List<ServiceLabel> labels;
 
     protected override async Task OnInitializedAsync()
     {
         services = await ControlService.GetServiceSummaries();
+        labels = await ControlService.GetLabels();
         _loading = false;
 
         _timer = new Timer(async stateInfo =>
@@ -87,6 +97,29 @@
 
         var options = new DialogOptions() { CloseButton = true, FullScreen = true };
         DialogService.Show<MonitorDialog>("", parameters, options);
+    }
+
+    private string[] GetLabels(string address)
+    {
+        return labels.Where(p => p.Address == address)
+            .Select(p => p.Name)
+            .Take(3)
+            .ToArray();
+    }
+
+    private async Task AddLabels(ServiceSummaryModel serviceModel)
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("ServiceModel", serviceModel);
+
+        var dialog = await DialogService.ShowAsync<LabelAddDialog>("", parameters);
+
+        var result = await dialog.Result;
+        if (!result.Canceled)
+        {
+            var label = result.Data as ServiceLabel;
+            labels.Add(label);
+        }
     }
 
     public void Dispose()

@@ -10,6 +10,7 @@ public sealed class PrimaryKeyAddressPlacementDirector : IPlacementDirector
         PlacementTarget target,
         IPlacementContext context)
     {
+        // 多网卡？
         var allSilos = context.GetCompatibleSilos(target);
 
         var targetAddress = target.GrainIdentity.Key.ToString();

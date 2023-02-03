@@ -111,6 +111,16 @@ public class ServiceControlService
         return await recordGrain.GetAll();
     }
 
+    public async Task<List<ServiceLabel>> GetLabels()
+    {
+        return await clusterClient.GetGrain<IServiceLabelGrain>(0).GetLabels();
+    }
+
+    public async Task AddLabel(ServiceLabel label)
+    {
+        await clusterClient.GetGrain<IServiceLabelGrain>(0).AddLabel(label);
+    }
+
     private static async Task SaveUpdateFile(byte[] buffers, string name)
     {
         string fileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,

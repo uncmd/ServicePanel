@@ -4,6 +4,8 @@ using Orleans.Clustering.Redis;
 using Serilog;
 using ServicePanel.Admin;
 
+Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
 var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()

@@ -18,6 +18,9 @@
           SelectOnRowClick="true"
           Filter="p => FilterFunc(p, searchString)"
           RowsPerPage="50"
+          FixedHeader="true"
+          FixedFooter="true"
+          Height="calc(100vh - 190px)"
           LoadingProgressColor="Color.Info">
     <ToolBarContent>
         <MudText Typo="Typo.h6">@Address</MudText>

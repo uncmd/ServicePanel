@@ -132,8 +132,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
             Decompression(zipFile, targetDirectory);
             await WriteMessage("更新文件解压完成");
 
-            await WriteMessage($"开始执行更新脚本：ServiceUpdate.ps1");
-            await WriteMessage($"脚本参数：{targetDirectory}");
+            await WriteMessage($"开始执行代理服务更新，脚本参数：{targetDirectory}");
             
             var process = new Process
             {

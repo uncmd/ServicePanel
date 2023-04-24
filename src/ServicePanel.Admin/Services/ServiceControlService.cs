@@ -124,7 +124,7 @@ public class ServiceControlService
     private static async Task SaveUpdateFile(byte[] buffers, string name)
     {
         string fileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                UpdateFileFolder, Guid.NewGuid().ToString("N"));
+                UpdateFileFolder, DateTime.Now.ToString("yyyyMMddHHmmss"));
         if (!Directory.Exists(fileFolder))
         {
             Directory.CreateDirectory(fileFolder);

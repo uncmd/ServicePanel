@@ -2,8 +2,20 @@ using Orleans.Clustering.Redis;
 using Serilog;
 using ServicePanel;
 
+var logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .WriteTo.File("Logs/error.txt", rollingInterval: RollingInterval.Day)
+    .CreateLogger();
+
 try
 {
+    new Mutex(true, "ServicePanel.Agent", out bool createdNew);
+    if (!createdNew)
+    {
+        logger.Warning("ServicePanel代理正在运行，请不要重复运行.");
+        return 1;
+    }
+
     Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
     // 单文件发布需要显式传递配置程序集
@@ -47,7 +59,7 @@ try
         .UseWindowsService()
         .Build();
 
-    Log.Information("Starting ServicePanel.Agent.");
+    logger.Information("Starting ServicePanel.Agent.");
     await host.RunAsync();
     return 0;
 }
@@ -58,7 +70,7 @@ catch (Exception ex)
         throw;
     }
 
-    Log.Fatal(ex, "ServicePanel.Agent terminated unexpectedly!");
+    logger.Fatal(ex, "ServicePanel.Agent terminated unexpectedly!");
     return 1;
 }
 finally

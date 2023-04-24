@@ -15,7 +15,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
     private readonly string UpdateFileFolder = "TempUpdateFile";
 
     private readonly ILogger<UpdatorGrain> logger;
-    private AsyncRetryPolicy fileUsedRetryPolicy;
+    private readonly AsyncRetryPolicy fileUsedRetryPolicy;
 
     private readonly ObserverManager<IChat> _subsManager;
 
@@ -44,8 +44,9 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         try
         {
             // 下载
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
             string zipFileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
-                UpdateFileFolder, Guid.NewGuid().ToString("N"));
+                UpdateFileFolder, DateTime.Now.ToString("yyyyMMddHHmmss") + fileNameWithoutExtension);
             if (!Directory.Exists(zipFileFolder))
             {
                 Directory.CreateDirectory(zipFileFolder);

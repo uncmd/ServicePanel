@@ -38,6 +38,11 @@ try
         .UseSerilog()
         .UseOrleansClient(builder =>
         {
+            builder.UseConnectionRetryFilter(async (ex, cancellationToken) =>
+            {
+                await Task.Delay(5000, cancellationToken);
+                return true;
+            });
             builder.UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database);
         })
         .UseWindowsService();

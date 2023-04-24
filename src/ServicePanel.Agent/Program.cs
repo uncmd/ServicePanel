@@ -4,15 +4,16 @@ using ServicePanel;
 
 var logger = new LoggerConfiguration()
     .WriteTo.Console()
-    .WriteTo.File("Logs/error.txt", rollingInterval: RollingInterval.Day)
+    .WriteTo.File("Logs/logs.txt", rollingInterval: RollingInterval.Day)
     .CreateLogger();
+var serviceName = "ServicePanelAgent";
 
 try
 {
-    new Mutex(true, "ServicePanel.Agent", out bool createdNew);
+    new Mutex(true, serviceName, out bool createdNew);
     if (!createdNew)
     {
-        logger.Warning("ServicePanel代理正在运行，请不要重复运行.");
+        logger.Warning("{ServiceName}代理正在运行，请不要重复运行.", serviceName);
         return 1;
     }
 
@@ -45,7 +46,7 @@ try
 
             if (redisOptions == null)
             {
-                Log.Error("未配置redis，请添加RedisClusteringOptions配置项");
+                logger.Error("未配置redis，请添加RedisClusteringOptions配置项");
                 throw new ArgumentException("未配置redis，请添加RedisClusteringOptions配置项");
             }
             builder
@@ -56,10 +57,13 @@ try
                     options.DatabaseNumber = redisOptions.Database;
                 });
         })
-        .UseWindowsService()
+        .UseWindowsService(options =>
+        {
+            options.ServiceName = serviceName;
+        })
         .Build();
 
-    logger.Information("Starting ServicePanel.Agent.");
+    logger.Information("Starting {ServiceName}.", serviceName);
     await host.RunAsync();
     return 0;
 }
@@ -70,7 +74,7 @@ catch (Exception ex)
         throw;
     }
 
-    logger.Fatal(ex, "ServicePanel.Agent terminated unexpectedly!");
+    logger.Fatal(ex, "{ServiceName} terminated unexpectedly!", serviceName);
     return 1;
 }
 finally

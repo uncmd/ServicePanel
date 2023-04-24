@@ -4,6 +4,7 @@ using Polly.Retry;
 using ServicePanel.Models;
 using SharpCompress.Archives;
 using SharpCompress.Common;
+using System.Diagnostics;
 using System.Runtime.Versioning;
 
 namespace ServicePanel.Grains;
@@ -70,7 +71,8 @@ public class UpdatorGrain : Grain, IUpdatorGrain
 
             var totalFiles = GetFilesCount(new DirectoryInfo(targetDirectory));
 
-            var serviceControl = GrainFactory.GetGrain<IServiceControlGrain>(this.GetPrimaryKeyString());
+            var address = this.GetPrimaryKeyString();
+            var serviceControl = GrainFactory.GetGrain<IServiceControlGrain>(address);
             foreach (var serviceName in serviceNames)
             {
                 // 停服务
@@ -87,7 +89,7 @@ public class UpdatorGrain : Grain, IUpdatorGrain
                 await WriteMessage(startResult);
 
                 // 保存更新记录
-                await SaveRecord(serviceName, totalFiles);
+                await SaveRecord(address, serviceName, totalFiles);
             }
 
             // 删除临时目录
@@ -97,6 +99,61 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         catch (Exception ex)
         {
             await WriteMessage($"文件{fileName}更新失败", ex);
+            throw;
+        }
+    }
+
+    public async Task UpdateAgent(byte[] buffers, string fileName)
+    {
+        try
+        {
+            // 下载
+            var fileNameWithoutExtension = Path.GetFileNameWithoutExtension(fileName);
+            string zipFileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
+                UpdateFileFolder, DateTime.Now.ToString("yyyyMMddHHmmss") + fileNameWithoutExtension);
+            if (!Directory.Exists(zipFileFolder))
+            {
+                Directory.CreateDirectory(zipFileFolder);
+            }
+            var zipFile = Path.Combine(zipFileFolder, fileName);
+
+            using var fileStream = new FileStream(zipFile, FileMode.Create, FileAccess.Write);
+            await fileStream.WriteAsync(buffers);
+            fileStream.Close();
+            fileStream.Dispose();
+            await WriteMessage("代理更新文件下载完成");
+
+            // 解压到临时目录
+            string targetDirectory = Path.Combine(zipFileFolder, "extract");
+            if (!Directory.Exists(targetDirectory))
+            {
+                Directory.CreateDirectory(targetDirectory);
+            }
+            Decompression(zipFile, targetDirectory);
+            await WriteMessage("更新文件解压完成");
+
+            await WriteMessage($"开始执行更新脚本：ServiceUpdate.ps1");
+            await WriteMessage($"脚本参数：{targetDirectory}");
+            
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "ServicePanel.AgentUpdate.exe",
+                    Arguments = targetDirectory,
+                    UseShellExecute = false,
+                }
+            };
+
+            process.Start();
+
+            // 保存更新记录
+            var totalFiles = GetFilesCount(new DirectoryInfo(targetDirectory));
+            await SaveRecord("", "代理服务", totalFiles);
+        }
+        catch (Exception ex)
+        {
+            await WriteMessage($"代理更新失败", ex);
             throw;
         }
     }
@@ -166,9 +223,8 @@ public class UpdatorGrain : Grain, IUpdatorGrain
         }
     }
 
-    private async Task SaveRecord(string serviceName, int totalFiles)
+    private async Task SaveRecord(string address, string serviceName, int totalFiles)
     {
-        var address = this.GetPrimaryKeyString();
         UpdateRecord record = new UpdateRecord
         {
             Address = address,

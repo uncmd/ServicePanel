@@ -44,6 +44,9 @@
     [Parameter]
     public ServiceModel serviceModel { get; set; }
 
+    [Parameter]
+    public ServiceSummaryModel[] summaryModels{ get; set; }
+
     private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
     private string DragClass = DefaultDragClass;
 
@@ -72,9 +75,22 @@
             return;
         }
 
+        if (serviceModel != null)
+        {
+            await UpdateService();
+        }
+
+        if (summaryModels != null)
+        {
+            await UpdateAgent();
+        }
+    }
+
+    private async Task UpdateService()
+    {
         logs.Add($"{DateTime.Now} {serviceModel.Address} 开始更新服务: {serviceModel.ServiceName}");
 
-        await SubMessage();
+        await SubMessage(serviceModel.Address);
 
         try
         {
@@ -88,9 +104,32 @@
         }
     }
 
-    private async Task SubMessage()
+    private async Task UpdateAgent()
     {
-        updatorGrain = client.GetGrain<IUpdatorGrain>(serviceModel.Address);
+        foreach (var summaryModel in summaryModels)
+        {
+            var agentAddress = summaryModel.Address;
+
+            logs.Add($"{DateTime.Now} 开始更新代理服务：{agentAddress}");
+
+            await SubMessage(agentAddress);
+
+            try
+            {
+                await Service.UpdateAgent(agentAddress, file);
+
+                Snackbar.Add($"代理服务{agentAddress}更新成功", Severity.Success);
+            }
+            finally
+            {
+                await UnSubscribe();
+            }
+        }
+    }
+
+    private async Task SubMessage(string address)
+    {
+        updatorGrain = client.GetGrain<IUpdatorGrain>(address);
         chatReference = client.CreateObjectReference<IChat>(this);
         await updatorGrain.Subscribe(chatReference);
     }
@@ -118,8 +157,17 @@
 
     private void OpenUpdateRecordDialog()
     {
+        var model = serviceModel;
+        if (model == null)
+        {
+            model = new ServiceModel
+            {
+                Address = "",
+                ServiceName = "代理服务"
+            };
+        }
         var parameters = new DialogParameters();
-        parameters.Add("ServiceModel", serviceModel);
+        parameters.Add("ServiceModel", model);
 
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
         DialogService.Show<UpdateRecordDialog>("", parameters, options);

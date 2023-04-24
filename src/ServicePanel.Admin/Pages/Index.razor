@@ -5,54 +5,66 @@
 @inject ServiceControlService ControlService
 @inject IDialogService DialogService
 
-<MudTable Items="@services" 
-    Hover="true" 
-    Striped="true" 
-    SortLabel="Sort By"
-    Filter="p => FilterFunc(p, searchString)"
-    Loading="@_loading" 
-    LoadingProgressColor="Color.Info">
-    <ToolBarContent>
-        <MudSpacer />
-        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceSummaryModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
-        <MudTh>服务数</MudTh>
-        <MudTh>运行中的服务</MudTh>
-        <MudTh>标签</MudTh>
-        <MudTh>系统架构</MudTh>
-        <MudTh>系统名称</MudTh>
-        <MudTh>Cpu</MudTh>
-        <MudTh>内存</MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd DataLabel="地址">
-            <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
-        </MudTd>
-        <MudTd DataLabel="服务数量">@context.Count</MudTd>
-        <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
-        <MudTd DataLabel="标签">
-            @foreach (var label in GetLabels(context.Address))
-            {
-                <MudAvatar Color="Color.Primary">label</MudAvatar>
-            }
-            <MudIconButton Icon="@Icons.Material.Filled.NewLabel" OnClick="() => AddLabels(context)" />
-        </MudTd>
-        <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
-        <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
-        <MudTd DataLabel="Cpu">
-            <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
-                @($"{(int)(context.CpuUsage * 100)} %")
+@if (services == null || services.Length == 0)
+{
+    <MudText Color="Color.Error">没有可用的代理服务</MudText>
+}
+else
+{
+    <MudTable Items="@services"
+          Hover="true"
+          Striped="true"
+          SortLabel="Sort By"
+          Filter="p => FilterFunc(p, searchString)"
+          Loading="@_loading"
+          LoadingProgressColor="Color.Info">
+        <ToolBarContent>
+            <MudButton Color="Color.Success"
+                   StartIcon="@Icons.Material.Filled.Update"
+                   OnClick="() => UpdateService()">
+                更新代理服务
             </MudButton>
-        </MudTd>
-        <MudTd DataLabel="内存">
-            <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
-                @($"{(context.TotalPhysicalMemory - context.AvailableMemory) * 100 / context.TotalPhysicalMemory} %")
-            </MudButton>
-        </MudTd>
-    </RowTemplate>
-</MudTable>
+            <MudSpacer />
+            <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <HeaderContent>
+            <MudTh><MudTableSortLabel SortBy="new Func<ServiceSummaryModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
+            <MudTh>服务数</MudTh>
+            <MudTh>运行中的服务</MudTh>
+            <MudTh>标签</MudTh>
+            <MudTh>系统架构</MudTh>
+            <MudTh>系统名称</MudTh>
+            <MudTh>Cpu</MudTh>
+            <MudTh>内存</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="地址">
+                <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
+            </MudTd>
+            <MudTd DataLabel="服务数量">@context.Count</MudTd>
+            <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
+            <MudTd DataLabel="标签">
+                @foreach (var label in GetLabels(context.Address))
+                {
+                    <MudAvatar Color="Color.Primary">label</MudAvatar>
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.NewLabel" OnClick="() => AddLabels(context)" />
+            </MudTd>
+            <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
+            <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
+            <MudTd DataLabel="Cpu">
+                <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
+                    @($"{(int)(context.CpuUsage * 100)} %")
+                </MudButton>
+            </MudTd>
+            <MudTd DataLabel="内存">
+                <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
+                    @($"{(context.TotalPhysicalMemory - context.AvailableMemory) * 100 / context.TotalPhysicalMemory} %")
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
 
 @code {
     private bool _loading = true;
@@ -120,6 +132,15 @@
             var label = result.Data as ServiceLabel;
             labels.Add(label);
         }
+    }
+
+    private void UpdateService()
+    {
+        var parameters = new DialogParameters();
+        parameters.Add("SummaryModels", services);
+
+        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
+        DialogService.Show<ServiceUpdateDialog>($"更新代理服务", parameters, options);
     }
 
     public void Dispose()

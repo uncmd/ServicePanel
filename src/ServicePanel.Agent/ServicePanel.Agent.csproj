@@ -31,4 +31,13 @@
   <ItemGroup>
     <ProjectReference Include="..\ServicePanel.Common\ServicePanel.Common.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <None Update="ServiceInstall.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="ServiceUpdate.ps1">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

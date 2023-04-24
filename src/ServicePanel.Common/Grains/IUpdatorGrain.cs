@@ -7,4 +7,6 @@ public interface IUpdatorGrain : IGrainWithStringKey
     Task Subscribe(IChat observer);
 
     Task UnSubscribe(IChat observer);
+
+    Task UpdateAgent(byte[] buffers, string fileName);
 }

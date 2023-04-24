@@ -104,6 +104,16 @@ public class ServiceControlService
             .Update(buffers, browserFile.Name, serviceNames.ToArray());
     }
 
+    public async Task UpdateAgent(string address, IBrowserFile browserFile)
+    {
+        var buffers = await BrowserFileToByteArray(browserFile);
+
+        await SaveUpdateFile(buffers, browserFile.Name);
+
+        await clusterClient.GetGrain<IUpdatorGrain>(address)
+            .UpdateAgent(buffers, browserFile.Name);
+    }
+
     public async Task<List<UpdateRecord>> GetUpdateRecords(ServiceModel serviceModel)
     {
         var recordGrain = clusterClient.GetGrain<IUpdateRecordGrain>($"{serviceModel.Address}-{serviceModel.ServiceName}");

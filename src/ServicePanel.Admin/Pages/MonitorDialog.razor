@@ -10,13 +10,13 @@
             Width="100%"
             Height="70vh">
         </MudChart>
-        <MudText Align="Align.Center" Typo="Typo.h6">@($"{serviceModel.Address} {serviceModel.OSArchitecture} {serviceModel.OSDescription}")</MudText>
+@*        <MudText Align="Align.Center" Typo="Typo.h6">@($"{serviceModel.Address} {serviceModel.OSArchitecture} {serviceModel.OSDescription}")</MudText>*@
     </DialogContent>
 </MudDialog>
 
 @code {
     [Parameter]
-    public ServiceSummaryModel serviceModel { get; set; }
+    public MachineInfo MachineInfo { get; set; }
 
     const int dataLength = 15;
     private PeriodicTimer timer = new PeriodicTimer(TimeSpan.FromSeconds(3));
@@ -55,7 +55,7 @@
 
     private async Task UpdateData()
     {
-        var data = await ControlService.GetServiceSummary(serviceModel.Address);
+        var data = await ControlService.GetMachineInfo(MachineInfo.IP);
 
         var cpuUsage = Math.Ceiling((double)data.CpuUsage * 100);
         var memory = Math.Ceiling((double)((data.TotalPhysicalMemory - data.AvailableMemory) * 100 / data.TotalPhysicalMemory));

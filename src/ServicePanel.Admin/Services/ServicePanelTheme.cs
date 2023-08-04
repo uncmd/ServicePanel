@@ -14,7 +14,7 @@ public class ServicePanelTheme
         };
     }
 
-    private static readonly Palette DefaultLightPalette = new()
+    private static readonly PaletteLight DefaultLightPalette = new()
     {
         Black = "#110e2d",
         AppbarText = "#424242",

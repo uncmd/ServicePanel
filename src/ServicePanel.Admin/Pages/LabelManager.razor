@@ -1,0 +1,89 @@
+﻿@page "/label"
+@inject ServiceControlService ControlService
+
+<PageTitle>标签设置</PageTitle>
+
+@if (labels == null)
+{
+    <MudPaper>加载中...</MudPaper>
+}
+else
+{
+    // todo: 显示拥有数量
+    <MudTextField @ref="labelText" @bind-Value="label" Placeholder="请输入标签名称" Clearable="true" Immediate="true" OnKeyDown="Label_KeyDown"></MudTextField>
+    <MudButton OnClick="AddMachineLabel" Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Filled.Add">添加</MudButton>
+    <MudDivider></MudDivider>
+
+    @foreach (var labelEntity in labels)
+    {
+        <MudChip Color="Color.Info" OnClose="Closed" Value="labelEntity">@labelEntity.Name</MudChip>
+    }
+}
+
+@code {
+    private List<LabelEntity> labels;
+    private string label;
+    private string filter;
+    private MudTextField<string> filterText;
+    private MudTextField<string> labelText;
+
+    protected override async Task OnInitializedAsync()
+    {
+        labels = await ControlService.GetGlobalLabels();
+    }
+
+    private async Task AddMachineLabel()
+    {
+        await AddLabel(label);
+    }
+
+    private async Task Label_KeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await AddMachineLabel();
+            await labelText.FocusAsync();
+            await labelText.Clear();
+        }
+    }
+
+    private async Task AddLabel(string name)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                Snackbar.Add("名称不能为空", Severity.Warning);
+                return;
+            }
+
+            var labelEntity = new LabelEntity { Name = name };
+            await ControlService.AddLabel(labelEntity);
+            labels.Add(labelEntity);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"添加失败: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            label = string.Empty;
+            filter = string.Empty;
+        }
+    }
+
+    async Task Closed(MudChip chip)
+    {
+        try
+        {
+            var labelEntity = chip.Value as LabelEntity;
+            await ControlService.RemoveLabel(labelEntity);
+            Snackbar.Add($"已删除标签: {labelEntity.Name}", Severity.Info);
+            labels.Remove(labelEntity);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除标签失败: {ex.Message}", Severity.Error);
+        }
+    }
+}

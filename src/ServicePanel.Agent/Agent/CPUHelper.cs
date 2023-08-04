@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace ServicePanel.Agent.Statistics;
+namespace ServicePanel.Agent;
 
 internal partial class CPUHelper
 {
@@ -27,7 +27,8 @@ internal partial class CPUHelper
         ulong totalTicksSinceLastTime = newTime.SystemTime - oldTime.SystemTime;
         ulong idleTicksSinceLastTime = newTime.IdleTime - oldTime.IdleTime;
 
-        double ret = 1.0f - ((totalTicksSinceLastTime > 0) ? ((double)idleTicksSinceLastTime) / totalTicksSinceLastTime : 0);
+        double ret = 1.0f - ((totalTicksSinceLastTime > 0) ? 
+            ((double)idleTicksSinceLastTime) / totalTicksSinceLastTime : 0);
 
         return ret;
     }

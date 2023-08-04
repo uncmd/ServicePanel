@@ -1,132 +1,189 @@
-﻿@page "/control-panel/{address?}"
+﻿@page "/control-panel/{AddressListJson?}"
 @using System.ServiceProcess
 @inject NavigationManager Navigation
-@inject ServiceControlService ControlService
+@inject ServiceControlService Service
 @inject IDialogService DialogService
 
-@if (!string.IsNullOrWhiteSpace(Address))
+@if (selectedItems.Count > 0)
 {
-    <PageTitle>@Address - Windows服务控制面板</PageTitle>
+    <MudButtonGroup OverrideStyles="false">
+        <MudTooltip Text="启动" Placement="Placement.Right">
+            <MudButton Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.NotStarted"
+                       Disabled="DisabledStart()"
+                       OnClick="() => StartService()">
+                @if (selectedItems.Any(p => p.Processing))
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                }
+            </MudButton>
+        </MudTooltip>
+        <MudTooltip Text="停止" Placement="Placement.Right">
+            <MudButton Color="Color.Error"
+                       StartIcon="@Icons.Material.Filled.Stop"
+                       Disabled="DisabledStop()"
+                       OnClick="() => StopService()">
+                @if (selectedItems.Any(p => p.Processing))
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                }
+            </MudButton>
+        </MudTooltip>
+        <MudTooltip Text="更新" Placement="Placement.Right">
+            <MudButton Color="Color.Success"
+                       StartIcon="@Icons.Material.Filled.Update"
+                       OnClick="() => UpdateService(selectedItems)">
+                @if (selectedItems.Any(p => p.Processing))
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                }
+            </MudButton>
+        </MudTooltip>
+    </MudButtonGroup>
 }
 
-<MudTable Items="@services"
-          Hover="true"
-          Striped="true"
-          Dense="true"
-          MultiSelection="true"
-          @bind-SelectedItems="selectedItems"
-          SelectOnRowClick="true"
-          Filter="p => FilterFunc(p, searchString)"
-          RowsPerPage="50"
-          FixedHeader="true"
-          FixedFooter="true"
-          Height="calc(100vh - 190px)"
-          LoadingProgressColor="Color.Info">
-    <ToolBarContent>
-        <MudText Typo="Typo.h6">@Address</MudText>
-        <MudSpacer />
-        <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
-    </ToolBarContent>
-    <HeaderContent>
-        @if (string.IsNullOrWhiteSpace(Address))
-        {
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
-        }
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Pid)">PID</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
-        <MudTh>操作</MudTh>
-        <MudTh>启动类型</MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.MemoryInfo)">内存</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ThreadCount)">线程</MudTableSortLabel></MudTh>
-        <MudTh><MudTableSortLabel SortBy="new Func<ServiceModel, object>(x=>x.ExePath)">路径</MudTableSortLabel></MudTh>
-    </HeaderContent>
-    <RowTemplate>
-        @if (string.IsNullOrWhiteSpace(Address))
-        {
-            <MudTd DataLabel="地址">
-                <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
-            </MudTd>
-        }
-        <MudTd DataLabel="名称">@context.ServiceName</MudTd>
-        <MudTd DataLabel="PID">@context.Pid</MudTd>
-        <MudTd DataLabel="描述">@context.DisplayName</MudTd>
-        <MudTd DataLabel="状态">@context.Status</MudTd>
-        <MudTd DataLabel="操作">
-            <MudButtonGroup OverrideStyles="false">
-                <MudTooltip Text="启动" Placement="Placement.Right">
-                    <MudButton Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.NotStarted"
-                               Disabled="DisabledStart(context)"
-                               OnClick="() => StartService(context)">
-                        @if (context.Processing)
-                        {
-                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                        }
-                    </MudButton>
-                </MudTooltip>
-                <MudTooltip Text="停止" Placement="Placement.Right">
-                    <MudButton Color="Color.Error"
-                               StartIcon="@Icons.Material.Filled.Stop"
-                               Disabled="DisabledStop(context)"
-                               OnClick="() => StopService(context)">
-                        @if (context.Processing)
-                        {
-                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                        }
-                    </MudButton>
-                </MudTooltip>
-                <MudTooltip Text="更新" Placement="Placement.Right">
-                    <MudButton Color="Color.Success"
-                               StartIcon="@Icons.Material.Filled.Update"
-                               OnClick="() => UpdateService(context)">
-                        @if (context.Processing)
-                        {
-                            <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                        }
-                    </MudButton>
-                </MudTooltip>
-            </MudButtonGroup>
-        </MudTd>
-        <MudTd DataLabel="启动类型">@context.StartType</MudTd>
-        <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
-        <MudTd DataLabel="内存">@context.MemoryInfo</MudTd>
-        <MudTd DataLabel="线程">@context.ThreadCount</MudTd>
-        <MudTd DataLabel="路径">@context.ExePath</MudTd>
-    </RowTemplate>
-    <PagerContent>
-        <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
-    </PagerContent>
-</MudTable>
+<MudTabs Outlined="true">
+    <MudTabPanel Text="服务" Icon="@Icons.Material.Filled.DesktopWindows">
+        <MudTable Items="@services"
+                  Hover="true"
+                  Striped="true"
+                  Dense="true"
+                  MultiSelection="true"
+                  SelectOnRowClick="false"
+        @bind-SelectedItems="selectedItems"
+                  Filter="p => FilterFunc(p, searchString)"
+                  RowsPerPage="50"
+                  FixedHeader="true"
+                  FixedFooter="true"
+                  Height="calc(100vh - 190px)"
+                  LoadingProgressColor="Color.Info">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">@string.Join(",", AddressList)</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
+                <MudTh>操作</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="名称">@context.ServiceName</MudTd>
+                <MudTd DataLabel="描述">@context.DisplayName</MudTd>
+                <MudTd DataLabel="状态">@context.Status</MudTd>
+                <MudTd DataLabel="操作">
+                    <MudButtonGroup OverrideStyles="false">
+                        <MudTooltip Text="启动" Placement="Placement.Right">
+                            <MudButton Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.NotStarted"
+                                       Disabled="DisabledStart(context)"
+                                       OnClick="() => StartService(context)">
+                                @if (context.Processing)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                }
+                            </MudButton>
+                        </MudTooltip>
+                        <MudTooltip Text="停止" Placement="Placement.Right">
+                            <MudButton Color="Color.Error"
+                                       StartIcon="@Icons.Material.Filled.Stop"
+                                       Disabled="DisabledStop(context)"
+                                       OnClick="() => StopService(context)">
+                                @if (context.Processing)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                }
+                            </MudButton>
+                        </MudTooltip>
+                        <MudTooltip Text="更新" Placement="Placement.Right">
+                            <MudButton Color="Color.Success"
+                                       StartIcon="@Icons.Material.Filled.Update"
+                                       OnClick="() => UpdateService(context)">
+                                @if (context.Processing)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                }
+                            </MudButton>
+                        </MudTooltip>
+                    </MudButtonGroup>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
+            </PagerContent>
+        </MudTable>
+    </MudTabPanel>
+    <MudTabPanel Text="详细信息" Icon="@Icons.Material.Filled.Dialpad">
+        <MudTable Items="@services"
+                  Hover="true"
+                  Striped="true"
+                  Dense="true"
+                  MultiSelection="true"
+                  SelectOnRowClick="false"
+                  HorizontalScrollbar="true"
+                  @bind-SelectedItems="selectedItems"
+                  Filter="p => FilterFunc(p, searchString)"
+                  RowsPerPage="50"
+                  FixedHeader="true"
+                  FixedFooter="true"
+                  Height="calc(100vh - 190px)"
+                  LoadingProgressColor="Color.Info">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">@string.Join(",", AddressList)</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.ServiceName)">名称</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.Pid)">PID</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.DisplayName)">描述</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.Status)">状态</MudTableSortLabel></MudTh>
+                <MudTh>启动类型</MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.MemoryInfo)">内存</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.ThreadCount)">线程</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<ServiceInfo, object>(x=>x.ExePath)">路径</MudTableSortLabel></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="名称">@context.ServiceName</MudTd>
+                <MudTd DataLabel="PID">@context.Pid</MudTd>
+                <MudTd DataLabel="描述">@context.DisplayName</MudTd>
+                <MudTd DataLabel="状态">@context.Status</MudTd>
+                <MudTd DataLabel="启动类型">@context.StartType</MudTd>
+                <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
+                <MudTd DataLabel="内存">@(Math.Round((double)context.MemoryInfo / 1024 / 1024, 1) + " MB")</MudTd>
+                <MudTd DataLabel="线程">@context.ThreadCount</MudTd>
+                <MudTd DataLabel="路径">@context.ExePath</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
+            </PagerContent>
+        </MudTable>
+    </MudTabPanel>
+</MudTabs>
 
 @code {
-    [Parameter]
-    public string Address { get; set; }
+    [Parameter] public string AddressListJson { get; set; }
+
+    private string[] AddressList => Deserialize(AddressListJson);
 
     private string searchString = "";
-    private HashSet<ServiceModel> selectedItems = new HashSet<ServiceModel>();
-    private ServiceModel[] services;
+    private HashSet<ServiceInfo> selectedItems = new HashSet<ServiceInfo>();
+    private List<ServiceInfo> services = new List<ServiceInfo>();
+    private List<MachineInfo> machineInfos;
 
     protected override async Task OnInitializedAsync()
     {
-        if (string.IsNullOrWhiteSpace(Address))
+        machineInfos = await Service.GetMachineInfos(AddressList);
+        foreach (var machineInfo in machineInfos)
         {
-            services = await ControlService.GetAllServices();
-        }
-        else
-        {
-            services = await ControlService.GetAllServices(Address);
+            var serviceInfos = await Service.GetAllServices(machineInfo.IP, machineInfo.ConnectionId);
+            services.AddRange(serviceInfos);
         }
     }
 
-    private void NavigateToServicePanelDetail(string address)
-    {
-        Navigation.NavigateTo($"control-panel/{address}");
-    }
-
-    private bool FilterFunc(ServiceModel element, string searchString)
+    private bool FilterFunc(ServiceInfo element, string searchString)
     {
         if (element == null)
             return false;
@@ -138,7 +195,7 @@
         foreach (var str in searchArray)
         {
             var filterResult = false;
-            if (element.Address.Contains(str, StringComparison.OrdinalIgnoreCase))
+            if (element.IP.Contains(str, StringComparison.OrdinalIgnoreCase))
                 filterResult = true;
             if (element.ServiceName.Contains(str, StringComparison.OrdinalIgnoreCase))
                 filterResult = true;
@@ -156,73 +213,99 @@
         return results.All(p => p == true);
     }
 
-    private bool DisabledStart(ServiceModel serviceModel)
+    private bool DisabledStart(ServiceInfo serviceInfo)
     {
-        return !serviceModel.CanStart || serviceModel.Processing;
+        return !serviceInfo.CanStart || serviceInfo.Processing;
     }
 
-    private bool DisabledStop(ServiceModel serviceModel)
+    private bool DisabledStop(ServiceInfo serviceInfo)
     {
-        return !serviceModel.CanStop || serviceModel.Processing;
+        return !serviceInfo.CanStop || serviceInfo.Processing;
     }
 
-    private bool DisabledReStart(ServiceModel serviceModel)
+    private async Task StartService(ServiceInfo serviceInfo)
     {
-        return !serviceModel.CanRestart || serviceModel.Processing;
+        await ControlService(serviceInfo, ControlType.Start);
     }
 
-    private async Task StartService(ServiceModel serviceModel)
+    private async Task StopService(ServiceInfo serviceInfo)
     {
-        await ServiceAction(serviceModel, 1);
+        await ControlService(serviceInfo, ControlType.Stop);
     }
 
-    private async Task StopService(ServiceModel serviceModel)
+    private bool DisabledStart()
     {
-        await ServiceAction(serviceModel, 2);
+        return selectedItems.Any(p => DisabledStart(p));
+    }
+
+    private bool DisabledStop()
+    {
+        return selectedItems.Any(p => DisabledStop(p));
+    }
+
+    private async Task StartService()
+    {
+        foreach (var serviceInfo in selectedItems)
+        {
+            await ControlService(serviceInfo, ControlType.Start);
+        }
+    }
+
+    private async Task StopService()
+    {
+        foreach (var serviceInfo in selectedItems)
+        {
+            await ControlService(serviceInfo, ControlType.Stop);
+        }
     }
 
     /// <summary>
-    /// 
+    ///
     /// </summary>
-    /// <param name="serviceModel"></param>
-    /// <param name="type">操作类型：1.启动 2.停止</param>
+    /// <param name="serviceInfo"></param>
     /// <returns></returns>
-    private async Task ServiceAction(ServiceModel serviceModel, int type)
+    private async Task ControlService(ServiceInfo serviceInfo, ControlType controlType)
     {
-        serviceModel.Processing = true;
-        string msg = string.Empty;
-
-        if (type == 1)
+        serviceInfo.Processing = true;
+        var connectionId = machineInfos.FirstOrDefault(p => p.IP == serviceInfo.IP)?.ConnectionId;
+        var command = new ControlCommand
         {
-            msg = await ControlService.StartService(serviceModel);
-        }
-        else if (type == 2)
-        {
-            msg = await ControlService.StopService(serviceModel);
-        }
+                ConnectionId = connectionId,
+            ControlType = controlType,
+            ServiceName = serviceInfo.ServiceName
+        };
+        var result = await Service.ControlService(command);
 
-        services = await ControlService.GetAllServices();
-        serviceModel.Processing = false;
+        services = await Service.GetAllServices(serviceInfo.IP, connectionId);
+        serviceInfo.Processing = false;
 
-        if (!string.IsNullOrWhiteSpace(msg))
+        if (!result.Success)
         {
-            if (msg.Contains("失败"))
-            {
-                Snackbar.Add(msg, Severity.Error);
-            }
-            else
-            {
-                Snackbar.Add(msg, Severity.Info);
-            }
+            Snackbar.Add(result.Message, Severity.Error);
         }
     }
 
-    private void UpdateService(ServiceModel serviceModel)
+    private async Task UpdateService(ServiceInfo serviceInfo)
+    {
+        await UpdateService(new HashSet<ServiceInfo> { serviceInfo });
+    }
+
+    private async Task UpdateService(HashSet<ServiceInfo> serviceInfos)
     {
         var parameters = new DialogParameters();
-        parameters.Add("ServiceModel", serviceModel);
+        parameters.Add("ServiceInfos", serviceInfos);
 
-        var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
-        DialogService.Show<ServiceUpdateDialog>($"{serviceModel.Address} {serviceModel.ServiceName}", parameters, options);
+        var options = new DialogOptions() { CloseButton = true, FullWidth = true };
+        var dialog = DialogService.Show<ServiceUpdateDialog>($"", parameters, options);
+
+        var result = await dialog.Result;
+        foreach (var item in selectedItems)
+        {
+            var infos = await Service.GetAllServices(item.IP, item.ConnectionId);
+            services.AddRange(infos);
+        }
     }
+
+    static string[] Deserialize(string source)
+        => System.Text.Json.JsonSerializer.Deserialize<string[]>(System.Net.WebUtility.UrlDecode(source));
 }

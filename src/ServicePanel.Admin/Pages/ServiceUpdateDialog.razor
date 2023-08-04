@@ -1,9 +1,7 @@
-﻿@using Orleans.Runtime
-@using ServicePanel.Grains
-@implements IChat
+﻿@implements IDisposable
 @inject ServiceControlService Service
-@inject IClusterClient client
 @inject IDialogService DialogService
+@inject DefaultUiNotificationService UiNotificationService
 
 <MudDialog>
     <DialogContent>
@@ -12,7 +10,7 @@
                            @ondragenter="@SetDragClass" @ondragleave="@ClearDragClass" @ondragend="@ClearDragClass">
                 <ButtonTemplate>
                     <MudPaper Height="100px" Outlined="true" Class="@DragClass">
-                        <MudText Typo="Typo.h6">先上传压缩文件，然后单击 <code>开始更新</code> 来更新服务</MudText>
+                        <MudText Typo="Typo.h6">先上传压缩文件，然后单击 <code>开始更新</code></MudText>
                         @if (file != null)
                         {
                             <MudList>
@@ -41,19 +39,21 @@
     </DialogActions>
 </MudDialog>
 @code {
-    [Parameter]
-    public ServiceModel serviceModel { get; set; }
-
-    [Parameter]
-    public ServiceSummaryModel[] summaryModels{ get; set; }
+    [Parameter] public HashSet<ServiceInfo> ServiceInfos { get; set; }
+    [Parameter] public List<MachineInfo> Machines { get; set; }
 
     private static string DefaultDragClass = "relative rounded-lg border-2 border-dashed pa-4 mt-4 mud-width-full mud-height-full z-10";
     private string DragClass = DefaultDragClass;
 
     IBrowserFile file;
     List<string> logs = new List<string>();
-    IChat chatReference;
-    IUpdatorGrain updatorGrain;
+
+    protected override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        UiNotificationService.NotificationReceived += OnNotificationReceived;
+    }
 
     private void UploadFiles(IBrowserFile file)
     {
@@ -62,10 +62,7 @@
         logs.Add($"{DateTime.Now} 上传文件{file.Name}");
     }
 
-    private bool SubmitDisabled()
-    {
-        return file == null;
-    }
+    private bool SubmitDisabled() => file == null;
 
     private async Task Submit()
     {
@@ -75,12 +72,12 @@
             return;
         }
 
-        if (serviceModel != null)
+        if (ServiceInfos != null)
         {
             await UpdateService();
         }
 
-        if (summaryModels != null)
+        if (Machines != null)
         {
             await UpdateAgent();
         }
@@ -88,61 +85,42 @@
 
     private async Task UpdateService()
     {
-        logs.Add($"{DateTime.Now} {serviceModel.Address} 开始更新服务: {serviceModel.ServiceName}");
-
-        await SubMessage(serviceModel.Address);
-
-        try
+        foreach (var serviceInfo in ServiceInfos)
         {
-            await Service.Update(serviceModel, file);
+            logs.Add($"{DateTime.Now} {serviceInfo.IP} {serviceInfo.ServiceName} 开始更新");
 
-            Snackbar.Add($"服务<b>{serviceModel.ServiceName}</b>更新成功", Severity.Success);
-        }
-        finally
-        {
-            await UnSubscribe();
+            try
+            {
+                await Service.Update(serviceInfo, file);
+
+                Snackbar.Add($"服务<b>{serviceInfo.ServiceName}</b>更新成功", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"服务<b>{serviceInfo.ServiceName}</b>更新失败：{ex.Message}", Severity.Error);
+            }
         }
     }
 
     private async Task UpdateAgent()
     {
-        foreach (var summaryModel in summaryModels)
+        foreach (var machineInfo in Machines)
         {
-            var agentAddress = summaryModel.Address;
+            var agentAddress = machineInfo.IP;
 
-            logs.Add($"{DateTime.Now} 开始更新代理服务：{agentAddress}");
-
-            await SubMessage(agentAddress);
+            logs.Add($"{DateTime.Now} {agentAddress} 开始更新代理");
 
             try
             {
-                await Service.UpdateAgent(agentAddress, file);
+                await Service.UpdateAgent(machineInfo, file);
 
-                Snackbar.Add($"代理服务{agentAddress}更新成功", Severity.Success);
+                Snackbar.Add($"{agentAddress}代理更新成功", Severity.Success);
             }
-            finally
+            catch (Exception ex)
             {
-                await UnSubscribe();
+                Snackbar.Add($"{agentAddress}代理更新失败：{ex.Message}", Severity.Error);
             }
         }
-    }
-
-    private async Task SubMessage(string address)
-    {
-        updatorGrain = client.GetGrain<IUpdatorGrain>(address);
-        chatReference = client.CreateObjectReference<IChat>(this);
-        await updatorGrain.Subscribe(chatReference);
-    }
-
-    private async Task UnSubscribe()
-    {
-        await updatorGrain.UnSubscribe(chatReference);
-    }
-
-    public async Task ReceiveMessage(string message)
-    {
-        logs.Add(message);
-        await InvokeAsync(() => StateHasChanged());
     }
 
     private void SetDragClass()
@@ -155,21 +133,34 @@
         DragClass = DefaultDragClass;
     }
 
-    private void OpenUpdateRecordDialog()
+    private async Task OpenUpdateRecordDialog()
     {
-        var model = serviceModel;
-        if (model == null)
-        {
-            model = new ServiceModel
-            {
-                Address = "",
-                ServiceName = "代理服务"
-            };
-        }
         var parameters = new DialogParameters();
-        parameters.Add("ServiceModel", model);
+        parameters.Add("ServiceInfos", ServiceInfos);
+        parameters.Add("Machines", Machines);
 
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
-        DialogService.Show<UpdateRecordDialog>("", parameters, options);
+        var dialog = DialogService.Show<UpdateRecordDialog>("", parameters, options);
+        var result = await dialog.Result;
+        if (!result.Canceled && result.Data is UpdateEntity updateEntity)
+        {
+            logs.Add($"{DateTime.Now} 服务{updateEntity.ServiceName}开始执行回滚操作，回滚到版本：{updateEntity.Version}");
+            await Service.Rollback(updateEntity);
+            logs.Add($"{DateTime.Now} 服务{updateEntity.ServiceName}回滚到版本：{updateEntity.Version}成功");
+        }
+    }
+
+    private async void OnNotificationReceived(object sender, UiNotificationEventArgs e)
+    {
+        logs.Add(e.Message);
+        await InvokeAsync(() => StateHasChanged());
+    }
+
+    public virtual void Dispose()
+    {
+        if (UiNotificationService != null)
+        {
+            UiNotificationService.NotificationReceived -= OnNotificationReceived;
+        }
     }
 }

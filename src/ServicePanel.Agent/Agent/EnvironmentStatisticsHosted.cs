@@ -1,18 +1,12 @@
-﻿using Orleans.Statistics;
-using ServicePanel.Agent.Statistics;
+﻿namespace ServicePanel.Agent;
 
-namespace ServicePanel.Statistics;
-
-internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifecycleObserver, IDisposable
+public class EnvironmentStatisticsHosted : IDisposable, IHostedService
 {
-    /// <inheritdoc />
-    public long? TotalPhysicalMemory { get; private set; }
+    public static long TotalPhysicalMemory { get; private set; }
 
-    /// <inheritdoc />
-    public float? CpuUsage { get; private set; }
+    public static float CpuUsage { get; private set; }
 
-    /// <inheritdoc />
-    public long? AvailableMemory { get; private set; }
+    public static long AvailableMemory { get; private set; }
 
     private readonly TimeSpan MONITOR_PERIOD = TimeSpan.FromSeconds(3);
 
@@ -22,9 +16,9 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
     private readonly ILogger _logger;
     private const float KB = 1024f;
 
-    public WindowsEnvironmentStatistics(ILoggerFactory loggerFactory)
+    public EnvironmentStatisticsHosted(ILoggerFactory loggerFactory)
     {
-        _logger = loggerFactory.CreateLogger<WindowsEnvironmentStatistics>();
+        _logger = loggerFactory.CreateLogger<EnvironmentStatisticsHosted>();
     }
 
     public void Dispose()
@@ -35,9 +29,9 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
         }
     }
 
-    public async Task OnStart(CancellationToken ct)
+    public async Task StartAsync(CancellationToken ct)
     {
-        _logger.LogTrace($"Starting {nameof(WindowsEnvironmentStatistics)}");
+        _logger.LogTrace($"Starting {nameof(EnvironmentStatisticsHosted)}");
 
         _cts = new CancellationTokenSource();
         ct.Register(() => _cts.Cancel());
@@ -49,15 +43,15 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
             TaskScheduler.Default
         );
 
-        _logger.LogTrace($"Started {nameof(WindowsEnvironmentStatistics)}");
+        _logger.LogTrace($"Started {nameof(EnvironmentStatisticsHosted)}");
     }
 
-    public async Task OnStop(CancellationToken ct)
+    public async Task StopAsync(CancellationToken ct)
     {
         if (_cts == null)
             return;
 
-        _logger.LogTrace($"Stopping {nameof(WindowsEnvironmentStatistics)}");
+        _logger.LogTrace($"Stopping {nameof(EnvironmentStatisticsHosted)}");
         try
         {
             _cts.Cancel();
@@ -69,11 +63,11 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, $"Error stopping {nameof(WindowsEnvironmentStatistics)}");
+            _logger.LogError(ex, $"Error stopping {nameof(EnvironmentStatisticsHosted)}");
         }
         finally
         {
-            _logger.LogTrace($"Stopped {nameof(WindowsEnvironmentStatistics)}");
+            _logger.LogTrace($"Stopped {nameof(EnvironmentStatisticsHosted)}");
         }
     }
 
@@ -94,7 +88,7 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
 
                 if (_logger.IsEnabled(LogLevel.Trace))
                 {
-                    var logStr = $"WindowsEnvironmentStatistics: CpuUsage={CpuUsage?.ToString("0.0")}, TotalPhysicalMemory={TotalPhysicalMemory}, AvailableMemory={AvailableMemory}";
+                    var logStr = $"WindowsEnvironmentStatistics: CpuUsage={CpuUsage.ToString("0.0")}, TotalPhysicalMemory={TotalPhysicalMemory}, AvailableMemory={AvailableMemory}";
                     _logger.LogTrace(logStr);
                 }
 
@@ -129,7 +123,7 @@ internal class WindowsEnvironmentStatistics : IHostEnvironmentStatistics, ILifec
     {
         var (totalMemory, availableMemory) = MemoryHelper.GetMemory();
 
-        TotalPhysicalMemory ??= (long)totalMemory;
+        TotalPhysicalMemory = (long)totalMemory;
 
         AvailableMemory = (long)availableMemory;
 

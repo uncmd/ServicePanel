@@ -2,12 +2,12 @@
 @implements IDisposable
 @inject LayoutService LayoutService
 
-<PageTitle>Windows服务控制面板</PageTitle>
+<PageTitle>Windows服务管理工具</PageTitle>
 
 <MudRTLProvider RightToLeft="@LayoutService.IsRTL">
     <audio id="notification" src="/media/notification.mp3" />
     <MudThemeProvider Theme="@LayoutService.CurrentTheme" IsDarkMode="@LayoutService.IsDarkMode" IsDarkModeChanged="LayoutService.SetDarkMode" />
-    <MudDialogProvider />
+    <MudDialogProvider DisableBackdropClick="true" />
     <MudSnackbarProvider />
 
     <MudLayout>

@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.ResponseCompression;
 using MudBlazor;
 using MudBlazor.Services;
-using Orleans.Clustering.Redis;
 using Serilog;
 using ServicePanel.Admin;
+using ServicePanel.Admin.Services;
 
 Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
@@ -10,45 +11,40 @@ var builder = WebApplication.CreateBuilder(args);
 
 Log.Logger = new LoggerConfiguration()
     .Enrich.FromLogContext()
-    .ReadFrom.Configuration(builder.Configuration)
+#if DEBUG
+    .WriteTo.Async(o => o.Console())
+#endif
+    .WriteTo.Async(o => o.File("Logs/logs.txt", rollingInterval: RollingInterval.Day))
     .CreateLogger();
 
 try
 {
     // Add services to the container.
     builder.Services.AddRazorPages();
+    builder.Services.AddSignalR(options =>
+    {
+        options.MaximumReceiveMessageSize = 10 * 1024 * 1024;
+    }).AddMessagePackProtocol();
     builder.Services.AddServerSideBlazor();
     builder.Services.AddServicePanel();
     builder.Services.AddMudServices(config =>
     {
         config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
     });
-
-    var redisOptions = builder.Configuration
-        .GetSection("RedisClusteringOptions")
-        .Get<RedisClusteringOptions>();
-
-    if (redisOptions == null)
-    {
-        Log.Error("Î´ÅäÖÃredis£¬ÇëÌí¼ÓRedisClusteringOptionsÅäÖÃÏî");
-        return 1;
-    }
-
+    
     builder.Host
         .UseSerilog()
-        .UseOrleansClient(builder =>
-        {
-            builder.UseConnectionRetryFilter(async (ex, cancellationToken) =>
-            {
-                await Task.Delay(5000, cancellationToken);
-                return true;
-            });
-            builder.UseRedisClustering(redisOptions.ConnectionString, redisOptions.Database);
-        })
         .UseWindowsService();
+
+    builder.Services.AddResponseCompression(opts =>
+    {
+        opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(
+              new[] { "application/octet-stream" });
+    });
 
     var app = builder.Build();
 
+    app.UseResponseCompression();
     // Configure the HTTP request pipeline.
     if (!app.Environment.IsDevelopment())
     {
@@ -63,7 +59,9 @@ try
 
     app.UseRouting();
 
-    app.MapBlazorHub();
+    app.MapBlazorHub(); 
+    app.MapHub<ServiceControlHub>("/service-control-hub");
+    app.MapFallbackToPage("/control-panel/{address?}", "/_Host");
     app.MapFallbackToPage("/_Host");
 
     Log.Information("Starting ServicePanel.Admin.");

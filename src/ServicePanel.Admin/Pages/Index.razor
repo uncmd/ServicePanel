@@ -1,17 +1,27 @@
 ﻿@page "/"
 @implements IDisposable
 @using System.ServiceProcess
+@using System.Text.Json;
 @inject NavigationManager Navigation
-@inject ServiceControlService ControlService
+@inject ServiceControlService Service
 @inject IDialogService DialogService
 
-@if (services == null || services.Length == 0)
+@if (Labels.Any())
+{
+    @foreach (var label in Labels)
+    {
+        <MudChip Color="Color.Info" OnClose="ClosedFilterLabel" Value="label">@label</MudChip>
+    }
+    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="() => LookupService()">查看服务</MudButton>
+}
+
+@if (Machines == null || Machines.Count == 0)
 {
     <MudText Color="Color.Error">没有可用的代理服务</MudText>
 }
 else
 {
-    <MudTable Items="@services"
+    <MudTable Items="@Machines"
           Hover="true"
           Striped="true"
           SortLabel="Sort By"
@@ -19,40 +29,39 @@ else
           Loading="@_loading"
           LoadingProgressColor="Color.Info">
         <ToolBarContent>
-            <MudButton Color="Color.Success"
-                   StartIcon="@Icons.Material.Filled.Update"
-                   OnClick="() => UpdateService()">
-                更新代理服务
+            <MudButton Color="Color.Success" StartIcon="@Icons.Material.Filled.Update" OnClick="() => UpdateAgent()">
+                更新代理
             </MudButton>
             <MudSpacer />
             <MudTextField @bind-Value="searchString" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
         </ToolBarContent>
+        <ColGroup>
+            <col style="width:180px;" />
+            <col style="width:100px;" />
+            <col style="width:80px;" />
+            <col style="width:150px;" />
+            <col style="width:80px;" />
+            <col style="width:140px;" />
+            <col />
+        </ColGroup>
         <HeaderContent>
-            <MudTh><MudTableSortLabel SortBy="new Func<ServiceSummaryModel, object>(x=>x.Address)">地址</MudTableSortLabel></MudTh>
-            <MudTh>服务数</MudTh>
-            <MudTh>运行中的服务</MudTh>
-            <MudTh>标签</MudTh>
-            <MudTh>系统架构</MudTh>
-            <MudTh>系统名称</MudTh>
-            <MudTh>Cpu</MudTh>
-            <MudTh>内存</MudTh>
+            <MudTh Style="text-align:center"><MudTableSortLabel SortBy="new Func<MachineInfo, object>(x=>x.IP)">地址</MudTableSortLabel></MudTh>
+            <MudTh Style="text-align:center">服务统计</MudTh>
+            <MudTh Style="text-align:center">状态</MudTh>
+ @*           <MudTh>Cpu</MudTh>
+            <MudTh>内存</MudTh>*@
+            <MudTh Style="text-align:center">上报时间</MudTh>
+            <MudTh Style="text-align:center">操作</MudTh>
+            <MudTh></MudTh>
+            <MudTh Style="text-align:center">标签</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="地址">
-                <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context.Address)">@context.Address</MudButton>
+            <MudTd DataLabel="地址" Style="text-align:center">
+                <MudButton EndIcon="@Icons.Custom.Brands.MicrosoftWindows" Color="Color.Primary" OnClick="() => NavigateToServicePanelDetail(context)" Disabled="context.Status == MachineStatus.OffLine">@context.IP</MudButton>
             </MudTd>
-            <MudTd DataLabel="服务数量">@context.Count</MudTd>
-            <MudTd DataLabel="运行中的服务数量">@context.RuningCount</MudTd>
-            <MudTd DataLabel="标签">
-                @foreach (var label in GetLabels(context.Address))
-                {
-                    <MudAvatar Color="Color.Primary">label</MudAvatar>
-                }
-                <MudIconButton Icon="@Icons.Material.Filled.NewLabel" OnClick="() => AddLabels(context)" />
-            </MudTd>
-            <MudTd DataLabel="系统架构">@context.OSArchitecture</MudTd>
-            <MudTd DataLabel="系统名称">@context.OSDescription</MudTd>
-            <MudTd DataLabel="Cpu">
+            <MudTd DataLabel="服务统计" Style="text-align:center">@context.RuningCount / @context.ServiceCount</MudTd>
+            <MudTd DataLabel="状态" Style="text-align:center">@(@context.Status == MachineStatus.OnLine ? "在线" : "离线")</MudTd>
+@*            <MudTd DataLabel="Cpu">
                 <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
                     @($"{(int)(context.CpuUsage * 100)} %")
                 </MudButton>
@@ -61,87 +70,256 @@ else
                 <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
                     @($"{(context.TotalPhysicalMemory - context.AvailableMemory) * 100 / context.TotalPhysicalMemory} %")
                 </MudButton>
+            </MudTd>*@
+            <MudTd DataLabel="上报时间" Style="text-align:center">@context.LastReportTime</MudTd>
+            <MudTd DataLabel="操作" Style="text-align:center">
+                <MudTooltip Text="移除" Placement="Placement.Right">
+                    <MudButton Color="Color.Secondary" StartIcon="@Icons.Material.Filled.RemoveCircle" Disabled="context.Status == MachineStatus.OnLine" OnClick="() => RemoveMachine(context)"></MudButton>
+                </MudTooltip>
+            </MudTd>
+            <MudTd>
+                <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="@(() => ShowBtnPress(context))">@((context.ShowDetails == true) ? "隐藏" : "显示")详细信息</MudButton>
+            </MudTd>
+            <MudTd DataLabel="标签" Style="text-align:center">
+                @foreach (var labelEntity in LabelEntitys.Where(p => p.IP == context.IP))
+                {
+                    <MudChip Color="Color.Info" OnClick="() => AddFilterLabel(labelEntity.Name)" OnClose="Closed" Value="labelEntity">@labelEntity.Name</MudChip>
+                }
+                <MudIconButton Icon="@Icons.Material.Filled.AddBox" Color="Color.Primary" OnClick="() => AddLabel(context)"></MudIconButton>
             </MudTd>
         </RowTemplate>
+        <ChildRowContent>
+            @if (context.ShowDetails)
+            {
+                <MudTr>
+                    <td colspan="7">
+                        <MudCard>
+                            <MudCardContent>
+                                <MudText Typo="Typo.body1">系统信息：<strong>@context.OSDescription</strong></MudText>
+                                <MudText Typo="Typo.body1">过滤配置：<strong>@context.ServiceKey</strong></MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    </td>
+                </MudTr>
+            }
+        </ChildRowContent>
     </MudTable>
 }
+
+<MudDialog @bind-IsVisible="isShowAddLabelDialog" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.AddBox" Class="mr-3" /> 添加标签
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudAutocomplete @ref="autocomplete" T="string" SearchFunc="@Search" OnKeyDown="KeyDown" CoerceText="false"></MudAutocomplete>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">取消</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">添加</MudButton>
+    </DialogActions>
+</MudDialog>
 
 @code {
     private bool _loading = true;
     private string searchString = "";
-    private ServiceSummaryModel[] services;
+    private List<MachineInfo> Machines;
+    private List<MachineInfo> AllMachine;
+    private List<LabelEntity> LabelEntitys;
     private Timer _timer;
-    private List<ServiceLabel> labels;
+    private bool isShowAddLabelDialog;
+    private DialogOptions dialogOptions = new() { FullWidth = true };
+    private MachineInfo machineInfo;
+    private HashSet<string> Labels = new HashSet<string>();
+    private MudAutocomplete<string> autocomplete;
 
     protected override async Task OnInitializedAsync()
     {
-        services = await ControlService.GetServiceSummaries();
-        labels = await ControlService.GetLabels();
+        Machines = await Service.GetMachineInfos();
+        AllMachine = Machines;
+        LabelEntitys = await Service.GetAllLabels();
         _loading = false;
 
-        _timer = new Timer(async stateInfo =>
-        {
-            services = await ControlService.GetServiceSummaries();
-            await InvokeAsync(StateHasChanged);
-        }, new AutoResetEvent(false), 5000, 5000);
+        //_timer = new Timer(async stateInfo =>
+        //{
+        //    Machines = await Service.GetMachineInfos();
+        //    AllMachine = Machines;
+        //    await InvokeAsync(StateHasChanged);
+        //}, new AutoResetEvent(false), 10000, 10000);
     }
 
-    private void NavigateToServicePanelDetail(string address)
+    private void NavigateToServicePanelDetail(MachineInfo machineInfo)
     {
-        Navigation.NavigateTo($"control-panel/{address}");
+        if (machineInfo.Status == MachineStatus.OffLine)
+        {
+            Snackbar.Add($"{machineInfo.IP}是离线状态，无法查看服务", Severity.Warning);
+            return;
+        }
+        var ipArr = new string[] { machineInfo.IP };
+        var labelJson = Serialize(ipArr);
+        Navigation.NavigateTo($"control-panel/{labelJson}");
     }
 
-    private bool FilterFunc(ServiceSummaryModel element, string searchString)
+    private bool FilterFunc(MachineInfo element, string searchString)
     {
         if (element == null)
             return false;
         if (string.IsNullOrWhiteSpace(searchString))
             return true;
-        if (element.Address.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+        if (element.IP.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         return false;
     }
 
-    private void ShowMonitorDialog(ServiceSummaryModel serviceModel)
+    private void ShowMonitorDialog(MachineInfo machineInfo)
     {
         var parameters = new DialogParameters();
-        parameters.Add("ServiceModel", serviceModel);
+        parameters.Add("MachineInfo", machineInfo);
 
         var options = new DialogOptions() { CloseButton = true, FullScreen = true };
         DialogService.Show<MonitorDialog>("", parameters, options);
     }
 
-    private string[] GetLabels(string address)
-    {
-        return labels.Where(p => p.Address == address)
-            .Select(p => p.Name)
-            .Take(3)
-            .ToArray();
-    }
-
-    private async Task AddLabels(ServiceSummaryModel serviceModel)
+    private void UpdateAgent()
     {
         var parameters = new DialogParameters();
-        parameters.Add("ServiceModel", serviceModel);
-
-        var dialog = await DialogService.ShowAsync<LabelAddDialog>("", parameters);
-
-        var result = await dialog.Result;
-        if (!result.Canceled)
-        {
-            var label = result.Data as ServiceLabel;
-            labels.Add(label);
-        }
-    }
-
-    private void UpdateService()
-    {
-        var parameters = new DialogParameters();
-        parameters.Add("SummaryModels", services);
+        parameters.Add("Machines", Machines);
 
         var options = new DialogOptions() { CloseButton = true, MaxWidth = MaxWidth.ExtraLarge };
         DialogService.Show<ServiceUpdateDialog>($"更新代理服务", parameters, options);
     }
+
+    async Task Closed(MudChip chip)
+    {
+        try
+        {
+            var labelEntity = chip.Value as LabelEntity;
+            await Service.RemoveLabel(labelEntity);
+            Snackbar.Add($"已删除标签: {labelEntity.Name}", Severity.Info);
+            LabelEntitys.Remove(labelEntity);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除标签失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void AddLabel(MachineInfo machineInfo)
+    {
+        isShowAddLabelDialog = true;
+        this.machineInfo = machineInfo;
+    }
+
+    void Cancel() => isShowAddLabelDialog = false;
+
+    private Task<IEnumerable<string>> Search(string value)
+    {
+        var excludeLabels = LabelEntitys
+            .Where(p => p.IP == machineInfo.IP)
+            .Select(p => p.Name)
+            .ToList();
+
+        if (string.IsNullOrEmpty(value))
+            return Task.FromResult(LabelEntitys
+                .Where(p => string.IsNullOrEmpty(p.IP))
+                .Where(p => !excludeLabels.Contains(p.Name))
+                .Select(p => p.Name));
+
+        return Task.FromResult(LabelEntitys
+            .Where(p => string.IsNullOrEmpty(p.IP))
+            .Where(p => !excludeLabels.Contains(p.Name))
+            .Select(p => p.Name).Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)));
+    }
+
+    private async Task KeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+        {
+            await Submit();
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (string.IsNullOrWhiteSpace(autocomplete.Text))
+        {
+            Snackbar.Add("标签名称不能为空", Severity.Error);
+            return;
+        }
+        if (!LabelEntitys.Any(p => p.Name == autocomplete.Text && string.IsNullOrWhiteSpace(p.IP)))
+        {
+            var labelSet = new LabelEntity { Name = autocomplete.Text };
+            await Service.AddLabel(labelSet);
+            LabelEntitys.Add(labelSet);
+        }
+
+        var labelEntity = new LabelEntity { Name = autocomplete.Text, IP = machineInfo.IP };
+        await Service.AddLabel(labelEntity);
+        LabelEntitys.Add(labelEntity);
+        await autocomplete.ResetAsync();
+    }
+
+    private void AddFilterLabel(string name)
+    {
+        Labels.Add(name);
+        MachineFilter();
+    }
+
+    private void ClosedFilterLabel(MudChip chip)
+    {
+        try
+        {
+            var label = chip.Value as string;
+            Labels.Remove(label);
+            MachineFilter();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"删除标签失败: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void MachineFilter()
+    {
+        if (Labels.Any())
+        {
+            var ips = LabelEntitys
+                .Where(p => Labels.Contains(p.Name) && !string.IsNullOrEmpty(p.IP))
+                .Select(p => p.IP)
+                .Distinct();
+            Machines = AllMachine.Where(p => ips.Contains(p.IP)).ToList();
+        }
+        else
+        {
+            Machines = AllMachine;
+        }
+    }
+
+    private void LookupService()
+    {
+        var ipArr = LabelEntitys
+            .Where(p => Labels.Contains(p.Name) && !string.IsNullOrEmpty(p.IP))
+            .Select(p => p.IP)
+            .Distinct()
+            .ToArray();
+        var labelJson = Serialize(ipArr);
+        Navigation.NavigateTo($"control-panel/{labelJson}");
+    }
+
+    private void ShowBtnPress(MachineInfo machineInfo)
+    {
+        machineInfo.ShowDetails = !machineInfo.ShowDetails;
+    }
+
+    private async Task RemoveMachine(MachineInfo machineInfo)
+    {
+        await Service.RemoveMachineInfo(machineInfo);
+        Machines.Remove(machineInfo);
+    }
+
+    static string Serialize(string[] source) =>
+        System.Net.WebUtility.UrlEncode(System.Text.Json.JsonSerializer.Serialize(source));
 
     public void Dispose()
     {

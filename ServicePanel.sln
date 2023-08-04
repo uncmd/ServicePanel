@@ -14,7 +14,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServicePanel.Admin", "src\S
 		{1D52A5FB-711A-4DA4-9C52-EC9894B27B05} = {1D52A5FB-711A-4DA4-9C52-EC9894B27B05}
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ServicePanel.AgentUpdate", "ServicePanel.AgentUpdate\ServicePanel.AgentUpdate.csproj", "{F762F565-EFF0-460F-B713-672F5953AFE8}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ServicePanel.AgentUpdate", "ServicePanel.AgentUpdate\ServicePanel.AgentUpdate.csproj", "{F762F565-EFF0-460F-B713-672F5953AFE8}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

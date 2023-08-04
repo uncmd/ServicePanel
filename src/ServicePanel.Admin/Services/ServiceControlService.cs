@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Components.Forms;
-using ServicePanel.Grains;
-using ServicePanel.Models;
+using Microsoft.AspNetCore.SignalR;
 using System.Runtime.Versioning;
 
 namespace ServicePanel.Admin.Services;
@@ -9,129 +8,195 @@ namespace ServicePanel.Admin.Services;
 public class ServiceControlService
 {
     private const string UpdateFileFolder = "UpdateFiles";
-    private const long maxFileSize = 1024 * 1024 * 30;
+    private const long maxFileSize = 1024 * 1024 * 300;
+    private readonly IFreeSql _freeSql;
+    private readonly IHubContext<ServiceControlHub, IServiceControlClient> _hubContext;
+    private readonly MachineHoldService _machineHold;
 
-    private readonly ISiloDetailsProvider siloDetailsProvider;
-    private readonly IClusterClient clusterClient;
-
-    public ServiceControlService(
-        ISiloDetailsProvider siloDetailsProvider,
-        IClusterClient clusterClient)
+    public ServiceControlService(IFreeSql freeSql, IHubContext<ServiceControlHub, IServiceControlClient> hubContext, MachineHoldService machineHold)
     {
-        this.siloDetailsProvider = siloDetailsProvider;
-        this.clusterClient = clusterClient;
+        _freeSql = freeSql;
+        _hubContext = hubContext;
+        _machineHold = machineHold;
     }
 
-    public async Task<ServiceModel[]> GetAllServices()
+    public async Task<List<LabelEntity>> GetAllLabels()
     {
-        List<ServiceModel> services = new List<ServiceModel>();
+        return await _freeSql.Select<LabelEntity>()
+            .ToListAsync();
+    }
 
-        var allSilos = await siloDetailsProvider.GetSiloDetails();
+    public async Task<List<LabelEntity>> GetGlobalLabels()
+    {
+        return await _freeSql.Select<LabelEntity>()
+            .Where(p => string.IsNullOrEmpty(p.IP))
+            .ToListAsync();
+    }
 
-        foreach (var silloAddress in allSilos.Select(p => p.EndpointAddress))
+    public async Task AddLabel(LabelEntity labelEntity)
+    {
+        _ = await _freeSql.Insert(labelEntity)
+            .ExecuteAffrowsAsync();
+    }
+
+    public async Task RemoveLabel(LabelEntity labelEntity)
+    {
+        _ = await _freeSql.Delete<LabelEntity>(labelEntity)
+            .ExecuteAffrowsAsync();
+    }
+
+    public Task<List<MachineInfo>> GetMachineInfos()
+    {
+        return Task.FromResult(_machineHold.GetMachineInfos());
+    }
+
+    public Task<MachineInfo> GetMachineInfo(string ip)
+    {
+        return Task.FromResult(_machineHold.GetMachineInfo(ip));
+    }
+
+    public Task<List<MachineInfo>> GetMachineInfos(string[] ips)
+    {
+        return Task.FromResult(_machineHold.GetMachineInfos(ips));
+    }
+
+    public Task RemoveMachineInfo(MachineInfo machineInfo)
+    {
+        _machineHold.RemoveMachineInfo(machineInfo);
+        return Task.CompletedTask;
+    }
+
+    public async Task<List<ServiceInfo>> GetAllServices(string ip, string connectionId)
+    {
+        if (string.IsNullOrWhiteSpace(ip))
+            return new List<ServiceInfo>();
+
+        return await _hubContext.Clients.Client(connectionId).GetServiceInfo();
+    }
+
+    public async Task<ControlResult> ControlService(ControlCommand command)
+    {
+        return await _hubContext.Clients.Client(command.ConnectionId)
+            .ControlService(command);
+    }
+
+    public async Task Update(ServiceInfo serviceInfo, IBrowserFile browserFile)
+    {
+        var (buffers, filePath) = await BrowserFileToByteArray(browserFile);
+
+        var command = new UpdateCommand
         {
-            var siloServices = await clusterClient.GetGrain<IServiceControlGrain>(silloAddress).GetAllServices();
+            Buffers = buffers,
+            FileName = browserFile.Name,
+            ServiceName = serviceInfo.ServiceName,
+            ConnectionId = serviceInfo.ConnectionId
+        };
 
-            services.AddRange(siloServices);
-        }
+        var result = await _hubContext.Clients.Client(command.ConnectionId)
+            .UpdateService(command);
 
-        return services.ToArray();
-    }
-
-    public async Task<ServiceModel[]> GetAllServices(string address)
-    {
-        if (string.IsNullOrWhiteSpace(address))
-            return Array.Empty<ServiceModel>();
-
-        return (await clusterClient.GetGrain<IServiceControlGrain>(address).GetAllServices()).ToArray();
-    }
-
-    public async Task<ServiceSummaryModel[]> GetServiceSummaries()
-    {
-        List<ServiceSummaryModel> services = new List<ServiceSummaryModel>();
-
-        var allSilos = await siloDetailsProvider.GetSiloDetails();
-
-        foreach (var silloAddress in allSilos.Select(p => p.EndpointAddress))
+        if (result.Success)
         {
-            var siloSummary = await clusterClient.GetGrain<IServiceControlGrain>(silloAddress).GetServiceSummaries();
-
-            services.Add(siloSummary);
+            UpdateEntity updateEntity = new UpdateEntity
+            {
+                CreateTime = DateTime.Now,
+                IP = serviceInfo.IP,
+                ServiceName = serviceInfo.ServiceName,
+                Size = browserFile.Size,
+                FileName = browserFile.Name,
+                FilePath = filePath,
+                TotalFiles = int.Parse(result.Message)
+            };
+            await _freeSql.Insert(updateEntity).ExecuteAffrowsAsync();
         }
-
-        return services.ToArray();
     }
 
-    public async Task<ServiceSummaryModel> GetServiceSummary(string address)
+    public async Task UpdateAgent(MachineInfo machineInfo, IBrowserFile browserFile)
     {
-        return await clusterClient.GetGrain<IServiceControlGrain>(address).GetServiceSummaries();
-    }
+        var (buffers, filePath) = await BrowserFileToByteArray(browserFile);
 
-    public async Task<string> StartService(ServiceModel serviceModel)
-    {
-        return await clusterClient.GetGrain<IServiceControlGrain>(serviceModel.Address)
-            .StartService(serviceModel.ServiceName);
-    }
-
-    public async Task<string> StopService(ServiceModel serviceModel)
-    {
-        return await clusterClient.GetGrain<IServiceControlGrain>(serviceModel.Address)
-            .StopService(serviceModel.ServiceName);
-    }
-
-    public async Task Update(List<ServiceModel> serviceModels, IBrowserFile browserFile)
-    {
-        foreach (var serviceModel in serviceModels.GroupBy(p => p.Address))
+        var command = new UpdateCommand
         {
-            var serviceNames = serviceModel.Select(p => p.ServiceName).ToList();
-            await Update(serviceModel.Key, serviceNames, browserFile);
+            Buffers = buffers,
+            FileName = browserFile.Name,
+            ConnectionId = machineInfo.ConnectionId
+        };
+
+        var result = await _hubContext.Clients.Client(command.ConnectionId)
+            .UpdateAgent(command);
+
+        if (result.Success)
+        {
+            UpdateEntity updateEntity = new UpdateEntity
+            {
+                CreateTime = DateTime.Now,
+                IP = machineInfo.IP,
+                ServiceName = "Windows管理工具代理服务",
+                Size = browserFile.Size,
+                FileName = browserFile.Name,
+                FilePath = filePath,
+                TotalFiles = int.Parse(result.Message)
+            };
+            await _freeSql.Insert(updateEntity).ExecuteAffrowsAsync();
         }
     }
 
-    public async Task Update(ServiceModel serviceModel, IBrowserFile browserFile)
+    public async Task<List<UpdateEntity>> GetUpdateRecords(ServiceInfo[] serviceInfo)
     {
-        var serviceNames = new List<string> { serviceModel.ServiceName };
-        await Update(serviceModel.Address, serviceNames, browserFile);
+        var ips = serviceInfo.Select(p => p.IP).Distinct();
+        var services = serviceInfo.Select(p => p.ServiceName).Distinct();
+        return await _freeSql.Select<UpdateEntity>()
+            .Where(p => ips.Contains(p.IP))
+            .Where(p => services.Contains(p.ServiceName))
+            .OrderByDescending(p => p.CreateTime)
+            .ToListAsync();
     }
 
-    private async Task Update(string address, List<string> serviceNames, IBrowserFile browserFile)
+    public async Task<List<UpdateEntity>> GetUpdateRecords(MachineInfo[] serviceInfo)
     {
-        var buffers = await BrowserFileToByteArray(browserFile);
-
-        await SaveUpdateFile(buffers, browserFile.Name);
-
-        await clusterClient.GetGrain<IUpdatorGrain>(address)
-            .Update(buffers, browserFile.Name, serviceNames.ToArray());
+        var ips = serviceInfo.Select(p => p.IP).Distinct();
+        return await _freeSql.Select<UpdateEntity>()
+            .Where(p => ips.Contains(p.IP))
+            .Where(p => p.ServiceName == "Windows管理工具代理服务")
+            .OrderByDescending(p => p.CreateTime)
+            .ToListAsync();
     }
 
-    public async Task UpdateAgent(string address, IBrowserFile browserFile)
+    /// <summary>
+    /// 回滚到指定版本
+    /// </summary>
+    /// <param name="updateEntity"></param>
+    /// <returns></returns>
+    public async Task Rollback(UpdateEntity updateEntity)
     {
-        var buffers = await BrowserFileToByteArray(browserFile);
+        var machineInfo = _machineHold.GetMachineInfo(updateEntity.IP);
+        var buffers = await File.ReadAllBytesAsync(updateEntity.FilePath);
 
-        await SaveUpdateFile(buffers, browserFile.Name);
+        var command = new UpdateCommand
+        {
+            Buffers = buffers,
+            FileName = updateEntity.FileName,
+            ConnectionId = machineInfo.ConnectionId,
+            ServiceName = updateEntity.ServiceName,
+        };
 
-        await clusterClient.GetGrain<IUpdatorGrain>(address)
-            .UpdateAgent(buffers, browserFile.Name);
+        await _hubContext.Clients.Client(command.ConnectionId)
+            .UpdateService(command);
     }
 
-    public async Task<List<UpdateRecord>> GetUpdateRecords(ServiceModel serviceModel)
+    private static async Task<(byte[], string)> BrowserFileToByteArray(IBrowserFile browserFile)
     {
-        var recordGrain = clusterClient.GetGrain<IUpdateRecordGrain>($"{serviceModel.Address}-{serviceModel.ServiceName}");
-
-        return await recordGrain.GetAll();
+        var fileStream = browserFile.OpenReadStream(maxFileSize);
+        using (MemoryStream memoryStream = new MemoryStream())
+        {
+            await fileStream.CopyToAsync(memoryStream);
+            var buffers = memoryStream.ToArray();
+            var filePath = await SaveUpdateFile(buffers, browserFile.Name);
+            return (buffers, filePath);
+        }
     }
 
-    public async Task<List<ServiceLabel>> GetLabels()
-    {
-        return await clusterClient.GetGrain<IServiceLabelGrain>(0).GetLabels();
-    }
-
-    public async Task AddLabel(ServiceLabel label)
-    {
-        await clusterClient.GetGrain<IServiceLabelGrain>(0).AddLabel(label);
-    }
-
-    private static async Task SaveUpdateFile(byte[] buffers, string name)
+    private static async Task<string> SaveUpdateFile(byte[] buffers, string name)
     {
         string fileFolder = Path.Combine(AppDomain.CurrentDomain.BaseDirectory,
                 UpdateFileFolder, DateTime.Now.ToString("yyyyMMddHHmmss"));
@@ -139,19 +204,10 @@ public class ServiceControlService
         {
             Directory.CreateDirectory(fileFolder);
         }
-        string fileName = Path.Combine(fileFolder, name);
+        string filePath = Path.Combine(fileFolder, name);
 
-        using var fileStream = new FileStream(fileName, FileMode.Create);
+        using var fileStream = new FileStream(filePath, FileMode.Create);
         await fileStream.WriteAsync(buffers);
-    }
-
-    private static async Task<byte[]> BrowserFileToByteArray(IBrowserFile browserFile)
-    {
-        var fileStream = browserFile.OpenReadStream(maxFileSize);
-        using (MemoryStream memoryStream = new MemoryStream())
-        {
-            await fileStream.CopyToAsync(memoryStream);
-            return memoryStream.ToArray();
-        }
+        return filePath;
     }
 }

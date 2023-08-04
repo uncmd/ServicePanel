@@ -4,7 +4,9 @@ using System.Runtime.InteropServices;
 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
+#if DEBUG
     .WriteTo.Async(c => c.Console())
+#endif
     .WriteTo.Async(c => c.File("Logs/agentUpdate.txt"))
     .CreateLogger();
 
@@ -15,7 +17,7 @@ try
 {
     if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
     {
-        AgentUpdate.Update(sourcePath, serviceName);
+        await AgentUpdate.Update(sourcePath, serviceName);
     }
     else
     {

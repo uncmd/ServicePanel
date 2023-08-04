@@ -1,23 +1,30 @@
-﻿using Orleans.Runtime;
-using Orleans.Runtime.Placement;
-using ServicePanel.Statistics;
+﻿using ServicePanel.Agent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 
 namespace ServicePanel;
 
 public static class ServiceCollectionExtensions
 {
+    public static IHostBuilder AddServicePanel(this IHostBuilder hostBuilder)
+    {
+        hostBuilder.ConfigureServices(service => service.AddServicePanel());
+
+        return hostBuilder;
+    }
+
     public static IServiceCollection AddServicePanel(this IServiceCollection services)
     {
-        services.AddSingletonNamedService<
-            PlacementStrategy, PrimaryKeyAddressPlacementStrategy>(nameof(PrimaryKeyAddressPlacementStrategy));
-        services.AddSingletonKeyedService<
-            Type, IPlacementDirector, PrimaryKeyAddressPlacementDirector>(
-                typeof(PrimaryKeyAddressPlacementStrategy));
+        Debug.Assert(RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
+
+        services.AddHostedService<EnvironmentStatisticsHosted>();
+        services.AddOptions<ServicePanelAgentOptions>().BindConfiguration(ServicePanelAgentOptions.Section);
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            WindowsEnvironmentStatisticsServices.RegisterServices<ISiloLifecycle>(services);
+            services.AddSingleton<IServiceControl, ServiceControl>();
+            services.AddHostedService<ServiceControlHosted>();
+            services.AddSingleton<HeartbeatReport>();
         }
 
         return services;

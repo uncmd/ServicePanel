@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 
-namespace ServicePanel.Agent.Statistics;
+namespace ServicePanel.Agent;
 
 internal partial class MemoryHelper
 {

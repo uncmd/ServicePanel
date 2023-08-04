@@ -3,29 +3,56 @@
 <MudDialog>
     <DialogContent>
         <MudTable Items="records">
-            <ToolBarContent>
-                <MudText Typo="Typo.h6">@serviceModel.Address @serviceModel.ServiceName</MudText>
-            </ToolBarContent>
             <HeaderContent>
-                <MudTh><MudTableSortLabel SortBy="new Func<UpdateRecord, object>(x=>x.UpdateTime)">更新时间</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateEntity, object>(x=>x.Version)">版本</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateEntity, object>(x=>x.IP)">IP</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateEntity, object>(x=>x.ServiceName)">服务</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateEntity, object>(x=>x.FileName)">文件名称</MudTableSortLabel></MudTh>
+                <MudTh><MudTableSortLabel SortBy="new Func<UpdateEntity, object>(x=>x.CreateTime)">更新时间</MudTableSortLabel></MudTh>
                 <MudTh>文件数量</MudTh>
+                <MudTh>文件大小</MudTh>
+                <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd DataLabel="更新时间">@context.UpdateTime</MudTd>
+                <MudTd DataLabel="版本">@context.Version</MudTd>
+                <MudTd DataLabel="IP">@context.IP</MudTd>
+                <MudTd DataLabel="服务">@context.ServiceName</MudTd>
+                <MudTd DataLabel="文件名称">@context.FileName</MudTd>
+                <MudTd DataLabel="更新时间">@context.CreateTime</MudTd>
                 <MudTd DataLabel="文件数量">@context.TotalFiles</MudTd>
+                <MudTd DataLabel="文件大小">@(Math.Round((double)context.Size / 1024 / 1024, 2)) MB</MudTd>
+                <MudTd>
+                    <MudButton Variant="Variant.Outlined" OnClick="() => Rollback(context)">回滚到此版本</MudButton>
+                </MudTd>
             </RowTemplate>
+            <PagerContent>
+                <MudTablePager PageSizeOptions="new int[] { 10, 25, 50, 100, int.MaxValue }" />
+            </PagerContent>
         </MudTable>
     </DialogContent>
 </MudDialog>
 
 @code {
-    [Parameter]
-    public ServiceModel serviceModel { get; set; }
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public HashSet<ServiceInfo> ServiceInfos { get; set; }
+    [Parameter] public List<MachineInfo> Machines { get; set; }
 
-    private List<UpdateRecord> records;
+    private List<UpdateEntity> records;
 
     protected override async Task OnInitializedAsync()
     {
-        records = await Service.GetUpdateRecords(serviceModel);
+        if (ServiceInfos != null && ServiceInfos.Any())
+        {
+            records = await Service.GetUpdateRecords(ServiceInfos.ToArray());
+        }
+        else if(Machines != null && Machines.Any())
+        {
+            records = await Service.GetUpdateRecords(Machines.ToArray());
+        }
+    }
+
+    void Rollback(UpdateEntity updateEntity)
+    {
+        MudDialog.Close(DialogResult.Ok(updateEntity));
     }
 }

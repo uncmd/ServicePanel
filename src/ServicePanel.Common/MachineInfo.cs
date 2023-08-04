@@ -31,21 +31,6 @@ public class MachineInfo
     public int RuningCount { get; set; }
 
     /// <summary>
-    /// CPU使用率
-    /// </summary>
-    public double CpuUsage { get; set; }
-
-    /// <summary>
-    /// 总计物理内存
-    /// </summary>
-    public long TotalPhysicalMemory { get; set; }
-
-    /// <summary>
-    /// 可用内存
-    /// </summary>
-    public long AvailableMemory { get; set; }
-
-    /// <summary>
     /// 连接ID
     /// </summary>
     public string ConnectionId { get; set; }

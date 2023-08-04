@@ -17,7 +17,6 @@ public static class ServiceCollectionExtensions
     {
         Debug.Assert(RuntimeInformation.IsOSPlatform(OSPlatform.Windows));
 
-        services.AddHostedService<EnvironmentStatisticsHosted>();
         services.AddOptions<ServicePanelAgentOptions>().BindConfiguration(ServicePanelAgentOptions.Section);
 
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))

@@ -12,8 +12,6 @@ public class MachineHoldService
             originMachine.LastReportTime = machine.LastReportTime;
             originMachine.ServiceCount = machine.ServiceCount;
             originMachine.RuningCount = machine.RuningCount;
-            originMachine.CpuUsage = machine.CpuUsage;
-            originMachine.AvailableMemory = machine.AvailableMemory;
             originMachine.ConnectionId = machine.ConnectionId;
             originMachine.Status = machine.Status;
             originMachine.ServiceKey = machine.ServiceKey;

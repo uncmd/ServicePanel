@@ -43,9 +43,6 @@ public class ServiceControl : IServiceControl
             ServiceCount = services.Count,
             RuningCount = services.Count(p => p.Status == ServiceControllerStatus.Running),
             OSDescription = $"{RuntimeInformation.OSArchitecture} {RuntimeInformation.OSDescription}",
-            CpuUsage = EnvironmentStatisticsHosted.CpuUsage,
-            TotalPhysicalMemory = EnvironmentStatisticsHosted.TotalPhysicalMemory,
-            AvailableMemory = EnvironmentStatisticsHosted.AvailableMemory,
             LastReportTime = DateTime.Now,
             Status = MachineStatus.OnLine,
             ServiceKey = string.Join(",", labels)
@@ -60,9 +57,6 @@ public class ServiceControl : IServiceControl
         {
             IP = localIP,
             OSDescription = $"{RuntimeInformation.OSArchitecture} {RuntimeInformation.OSDescription}",
-            CpuUsage = EnvironmentStatisticsHosted.CpuUsage,
-            TotalPhysicalMemory = EnvironmentStatisticsHosted.TotalPhysicalMemory,
-            AvailableMemory = EnvironmentStatisticsHosted.AvailableMemory,
             LastReportTime = DateTime.Now,
             Status = MachineStatus.OffLine
         };

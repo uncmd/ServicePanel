@@ -48,8 +48,6 @@ else
             <MudTh Style="text-align:center"><MudTableSortLabel SortBy="new Func<MachineInfo, object>(x=>x.IP)">地址</MudTableSortLabel></MudTh>
             <MudTh Style="text-align:center">服务统计</MudTh>
             <MudTh Style="text-align:center">状态</MudTh>
- @*           <MudTh>Cpu</MudTh>
-            <MudTh>内存</MudTh>*@
             <MudTh Style="text-align:center">上报时间</MudTh>
             <MudTh Style="text-align:center">操作</MudTh>
             <MudTh></MudTh>
@@ -61,16 +59,6 @@ else
             </MudTd>
             <MudTd DataLabel="服务统计" Style="text-align:center">@context.RuningCount / @context.ServiceCount</MudTd>
             <MudTd DataLabel="状态" Style="text-align:center">@(@context.Status == MachineStatus.OnLine ? "在线" : "离线")</MudTd>
-@*            <MudTd DataLabel="Cpu">
-                <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
-                    @($"{(int)(context.CpuUsage * 100)} %")
-                </MudButton>
-            </MudTd>
-            <MudTd DataLabel="内存">
-                <MudButton Color="Color.Primary" OnClick="() => ShowMonitorDialog(context)">
-                    @($"{(context.TotalPhysicalMemory - context.AvailableMemory) * 100 / context.TotalPhysicalMemory} %")
-                </MudButton>
-            </MudTd>*@
             <MudTd DataLabel="上报时间" Style="text-align:center">@context.LastReportTime</MudTd>
             <MudTd DataLabel="操作" Style="text-align:center">
                 <MudTooltip Text="移除" Placement="Placement.Right">
@@ -170,15 +158,6 @@ else
         if (element.IP.Contains(searchString, StringComparison.OrdinalIgnoreCase))
             return true;
         return false;
-    }
-
-    private void ShowMonitorDialog(MachineInfo machineInfo)
-    {
-        var parameters = new DialogParameters();
-        parameters.Add("MachineInfo", machineInfo);
-
-        var options = new DialogOptions() { CloseButton = true, FullScreen = true };
-        DialogService.Show<MonitorDialog>("", parameters, options);
     }
 
     private void UpdateAgent()

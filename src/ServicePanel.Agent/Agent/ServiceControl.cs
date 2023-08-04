@@ -122,7 +122,7 @@ public class ServiceControl : IServiceControl
 
     public Task RestartService(string serviceName)
     {
-        int timeoutMilliseconds = 50;
+        int timeoutMilliseconds = 60000;
         ServiceController service = new ServiceController(serviceName);
         int millisec1 = 0;
         TimeSpan timeout;

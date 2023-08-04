@@ -96,6 +96,17 @@
                                 }
                             </MudButton>
                         </MudTooltip>
+                        <MudTooltip Text="重启" Placement="Placement.Right">
+                            <MudButton Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.RestartAlt"
+                                       Disabled="DisabledReStart(context)"
+                                       OnClick="() => ReStartService(context)">
+                                @if (context.Processing)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                }
+                            </MudButton>
+                        </MudTooltip>
                         <MudTooltip Text="更新" Placement="Placement.Right">
                             <MudButton Color="Color.Success"
                                        StartIcon="@Icons.Material.Filled.Update"
@@ -223,6 +234,11 @@
         return !serviceInfo.CanStop || serviceInfo.Processing;
     }
 
+    private bool DisabledReStart(ServiceInfo serviceInfo)
+    {
+        return !serviceInfo.CanRestart || serviceInfo.Processing;
+    }
+
     private async Task StartService(ServiceInfo serviceInfo)
     {
         await ControlService(serviceInfo, ControlType.Start);
@@ -231,6 +247,11 @@
     private async Task StopService(ServiceInfo serviceInfo)
     {
         await ControlService(serviceInfo, ControlType.Stop);
+    }
+
+    private async Task ReStartService(ServiceInfo serviceInfo)
+    {
+        await ControlService(serviceInfo, ControlType.ReStart);
     }
 
     private bool DisabledStart()

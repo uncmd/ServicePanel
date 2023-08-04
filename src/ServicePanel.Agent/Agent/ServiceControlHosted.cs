@@ -126,6 +126,7 @@ internal class ServiceControlHosted : IServiceControlClient, IHostedService
             return ControlResult.Error(ex.Message);
         }
 
+        _logger.LogInformation("服务控制命令{ControlCommand}执行完成", command);
         return ControlResult.OK;
     }
 
